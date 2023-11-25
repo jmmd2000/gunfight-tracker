@@ -10,3 +10,60 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+
+model User {
+  id                        Int         @id @default(autoincrement())
+  google_id                 String      @unique
+  name                      String
+  friendcode                String
+  avatar_url                String
+  created_at                DateTime    @default(now())
+  updated_at                DateTime    @updatedAt
+  // friends                User[]
+  kd                        Float?
+  wl                        Float?
+  teams                     UserTeam[]
+  sentRequests              TeamRequest[] @relation("requestFrom")
+  receivedRequests          TeamRequest[] @relation("requestTo")
+}
+
+model Team {
+  id                        Int       @id @default(autoincrement())
+  name                      String
+  members                   UserTeam[]
+  requests                  TeamRequest[]
+}
+
+model UserTeam {
+  userId                    Int
+  teamId                    Int
+  user                      User @relation(fields: [userId], references: [id])
+  team                      Team @relation(fields: [teamId], references: [id])
+
+  @@id([userId, teamId])
+}
+
+model TeamRequest {
+  id                        Int      @id @default(autoincrement())
+  fromUserId                Int
+  toUserId                  Int
+  teamId                    Int
+  fromUser                  User     @relation("requestFrom", fields: [fromUserId], references: [id])
+  toUser                    User     @relation("requestTo", fields: [toUserId], references: [id])
+  team                      Team     @relation(fields: [teamId], references: [id])
+  status                    String   @default("pending") // can be 'pending', 'accepted', 'rejected'
+
+  @@unique([fromUserId, toUserId, teamId])
+}
+
+
+
+// model Friendship{
+//   id                Int         @id @default(autoincrement())
+//   user              User        @relation("UserToUserFriend", fields: [user_id], references: [id])
+//   user_id           Int
+//   friend            User        @relation("UserToUserFriend", fields: [friend_id], references: [id])
+//   friend_id         Int
+//   created_at        DateTime    @default(now())
+//   updated_at        DateTime    @updatedAt
+// }

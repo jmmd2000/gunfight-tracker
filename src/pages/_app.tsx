@@ -1,5 +1,6 @@
 import { type AppType } from "next/app";
 import { Inter } from "next/font/google";
+import { Layout } from "~/components/layout";
 
 import { api } from "~/utils/api";
 
@@ -12,7 +13,9 @@ const MyApp: AppType = ({ Component, pageProps }) => {
   return (
     <div className={inter.className}>
       <ClerkProvider {...pageProps}>
-        <Component {...pageProps} />
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
       </ClerkProvider>
     </div>
   );
