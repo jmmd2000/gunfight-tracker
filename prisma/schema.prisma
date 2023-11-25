@@ -14,46 +14,102 @@ generator client {
 model User {
   id                        Int         @id @default(autoincrement())
   google_id                 String      @unique
-  name                      String
-  friendcode                String
+  username                  String?
+  first_name                String?
+  last_name                 String?
+  friendcode                String      @unique
   avatar_url                String
   created_at                DateTime    @default(now())
   updated_at                DateTime    @updatedAt
   // friends                User[]
   kd                        Float?
   wl                        Float?
+  matches_played            Int?
   teams                     UserTeam[]
   sentRequests              TeamRequest[] @relation("requestFrom")
   receivedRequests          TeamRequest[] @relation("requestTo")
+  admin                     Boolean       @default(false)
+  best_map                  Map?           @relation("BestMapUsers", fields: [best_map_id], references: [id])
+  best_map_id               Int?
+  createdTeams              Team[] @relation("CreatedByUser")
+
+  @@index([best_map_id])
 }
 
 model Team {
   id                        Int       @id @default(autoincrement())
-  name                      String
+  name                      String    @unique
+  created_at                DateTime  @default(now())
+  created_by                User      @relation("CreatedByUser", fields: [created_by_google_id], references: [google_id])
+  created_by_google_id      String
   members                   UserTeam[]
   requests                  TeamRequest[]
+  kd                        Float?
+  wl                        Float?
+  matches                   Match[]  
+  best_map                  Map?       @relation("BestMapTeams", fields: [best_map_id], references: [id])
+  best_map_id               Int?
+
+  @@index([created_by_google_id])
+  @@index([best_map_id])
 }
 
 model UserTeam {
-  userId                    Int
+  user_google_Id            String
   teamId                    Int
-  user                      User @relation(fields: [userId], references: [id])
+  user                      User @relation(fields: [user_google_Id], references: [google_id])
   team                      Team @relation(fields: [teamId], references: [id])
 
-  @@id([userId, teamId])
+  @@id([user_google_Id, teamId])
+  @@index([teamId])
+  @@index([user_google_Id])
 }
 
 model TeamRequest {
   id                        Int      @id @default(autoincrement())
-  fromUserId                Int
-  toUserId                  Int
+  fromUserGoogleId          String
+  toUserGoogleId            String
   teamId                    Int
-  fromUser                  User     @relation("requestFrom", fields: [fromUserId], references: [id])
-  toUser                    User     @relation("requestTo", fields: [toUserId], references: [id])
+  fromUser                  User     @relation("requestFrom", fields: [fromUserGoogleId], references: [google_id])
+  toUser                    User     @relation("requestTo", fields: [toUserGoogleId], references: [google_id])
   team                      Team     @relation(fields: [teamId], references: [id])
   status                    String   @default("pending") // can be 'pending', 'accepted', 'rejected'
 
-  @@unique([fromUserId, toUserId, teamId])
+  @@unique([fromUserGoogleId, toUserGoogleId, teamId])
+  @@index([teamId])
+  @@index([toUserGoogleId])
+}
+
+model Match {
+  id                        Int       @id @default(autoincrement())
+  teamId                    Int
+  team                      Team      @relation( fields: [teamId], references: [id])
+  map                       Map       @relation(fields: [mapId], references: [id])
+  mapId                     Int
+  result                    String    
+  rounds_won                Int
+  rounds_lost               Int
+  created_at                DateTime  @default(now())
+  memberOneGoogleId         String
+  memberTwoGoogleId         String
+  memberOneKills            Int
+  memberOneDeaths           Int
+  memberTwoKills            Int
+  memberTwoDeaths           Int
+
+  @@index([teamId])
+  @@index([mapId])
+}
+
+model Map {
+  id                        Int       @id @default(autoincrement())
+  name                      String    @unique
+  matches                   Match[]
+  map_image_url             String
+  bestForUsers              User[] @relation("BestMapUsers")
+  bestForTeams              Team[] @relation("BestMapTeams")
+  
+  @@index([id])
 }
 
 

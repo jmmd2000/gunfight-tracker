@@ -44,11 +44,13 @@ type CreateContextOptions = Record<string, never>;
  */
 export const createTRPCContext = (opts: CreateNextContextOptions) => {
   const { req } = opts;
-  const user = getAuth(req);
+  const sesh = getAuth(req);
+  console.log(sesh.userId);
+  const user = sesh.userId;
 
   return {
     db,
-    session: user,
+    currentUser: user,
   };
 };
 
@@ -96,3 +98,17 @@ export const createTRPCRouter = t.router;
  * are logged in.
  */
 export const publicProcedure = t.procedure;
+
+const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.currentUser) {
+    throw new Error("User is not authenticated");
+  }
+
+  return next({
+    ctx: {
+      currentUser: ctx.currentUser,
+    },
+  });
+});
+
+export const privateProcedure = t.procedure.use(enforceUserIsAuthed);
