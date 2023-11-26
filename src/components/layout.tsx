@@ -1,11 +1,22 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable react/no-unescaped-entities */
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { type PropsWithChildren, useState, useEffect } from "react";
 import { api } from "~/utils/api";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Bell, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { TeamRequest } from "~/types";
 
 export const Layout = (props: PropsWithChildren) => {
   return (
@@ -58,6 +69,7 @@ const Navbar = () => {
           </div>
           {/* Secondary Navbar items */}
           <div className="ml-auto hidden items-center space-x-3 md:flex">
+            <RequestSidebar />
             {!user.isSignedIn && (
               <SignInButton>
                 <Button variant="outline">Login</Button>
@@ -120,5 +132,88 @@ const Navbar = () => {
         </div>
       </div>
     </nav>
+  );
+};
+
+const RequestSidebar = () => {
+  const { data, isLoading, isError } =
+    api.teamrequest.getAllWithMember.useQuery();
+  return (
+    <Sheet>
+      <SheetTrigger>
+        {/* <Button variant="secondary"> */}
+        <Bell />
+        {/* </Button> */}
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Team Requests</SheetTitle>
+          <SheetDescription>
+            When people send you team requests, they'll show up here.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="mt-8 flex flex-col gap-4">
+          {data?.map((teamrequest) => (
+            <TeamRequestCard key={teamrequest.id} teamrequest={teamrequest} />
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+const TeamRequestCard = (props: { teamrequest: TeamRequest }) => {
+  const { teamrequest } = props;
+  const router = useRouter();
+  // const { data, isLoading, isError } = api.team.getByID.useQuery(
+  //   teamrequest.teamID,
+  // );
+
+  console.log(teamrequest);
+  const { mutate: acceptTeamRequest } = api.teamrequest.accept.useMutation();
+  const { mutate: declineTeamRequest } = api.teamrequest.decline.useMutation();
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-700 bg-opacity-10 bg-clip-padding p-4 shadow-lg backdrop-blur-lg backdrop-filter">
+      <div className="flex flex-col items-start">
+        <h1 className="text-xl font-semibold text-zinc-300">
+          {teamrequest.team.name}
+        </h1>
+        {/* //* Very dirty way of accessing this, but since there's max 2 players, the person who sent the request will always be the user here */}
+        <p className="text-sm font-medium text-zinc-500">
+          {teamrequest.team.members[0]?.user.username}
+        </p>
+      </div>
+      {teamrequest.status === "pending" && (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="bg-green-500 hover:bg-green-600"
+            onClick={() => {
+              console.log(teamrequest);
+              acceptTeamRequest({
+                teamID: teamrequest.teamId,
+                fromUserGoogleId: teamrequest.fromUserGoogleId,
+              });
+              // router.push(`/team/${data?.name}`);
+            }}
+          >
+            <Check />
+          </Button>
+          <Button
+            size="sm"
+            className="bg-red-500 hover:bg-red-600"
+            onClick={() => {
+              declineTeamRequest({
+                teamID: teamrequest.teamId,
+                fromUserGoogleId: teamrequest.fromUserGoogleId,
+              });
+              // router.push(`/team/${data?.name}`);
+            }}
+          >
+            <X />
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };

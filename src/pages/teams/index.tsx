@@ -16,14 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScaleLoader } from "react-spinners";
+import Link from "next/link";
 
 export default function TeamsPage() {
-  const { data, isLoading, isError } = api.team.getAllWithMember.useQuery(
-    undefined,
-    {
-      refetchOnWindowFocus: false,
-    },
-  );
+  const { data, isLoading, isError } =
+    api.team.getAllWithMember.useQuery(undefined);
 
   // console.log(data);
   return (
@@ -40,8 +37,6 @@ export default function TeamsPage() {
 
 const TeamCard = (props: { team?: Team; new_button: boolean }) => {
   const { team, new_button } = props;
-  console.log(props);
-  console.log(team);
   return (
     <>
       {new_button ? (
@@ -50,24 +45,29 @@ const TeamCard = (props: { team?: Team; new_button: boolean }) => {
           <NewTeamDialog />
         </div>
       ) : (
-        <div className="flex h-64 w-56 flex-col items-center justify-end rounded-md border border-zinc-700 bg-opacity-40 bg-clip-padding text-gray-300 shadow-lg backdrop-blur-xl backdrop-filter hover:cursor-pointer hover:shadow-xl">
-          <div className="m-auto flex flex-col justify-evenly text-center">
-            <h1 className="text-2xl font-semibold">{team?.name}</h1>
-            {team?.members.map((member) => (
-              <p className="text-sm text-zinc-600" key={member.user_google_id}>
-                {member.user.username}
-              </p>
-            ))}
+        <Link href={`/team/${team?.name}`}>
+          <div className="flex h-64 w-56 flex-col items-center justify-end rounded-md border border-zinc-700 bg-opacity-40 bg-clip-padding text-gray-300 shadow-lg backdrop-blur-xl backdrop-filter hover:cursor-pointer hover:shadow-xl">
+            <div className="m-auto flex flex-col justify-evenly text-center">
+              <h1 className="text-2xl font-semibold">{team?.name}</h1>
+              {team?.members.map((member) => (
+                <p
+                  className="text-sm text-zinc-600"
+                  key={member.user_google_id}
+                >
+                  {member.user.username}
+                </p>
+              ))}
+            </div>
+            <div className="grid w-full grid-cols-3 grid-rows-2 gap-2 bg-zinc-900 bg-opacity-20 p-4 text-center text-xs text-zinc-300">
+              <p>K/D</p>
+              <p>W/L</p>
+              <p>Matches</p>
+              <p>{team?.kd !== null ? team?.kd : "-"}</p>
+              <p>{team?.wl !== null ? team?.wl : "-"}</p>
+              <p>{team?.matches !== undefined ? team?.matches.length : "-"}</p>
+            </div>
           </div>
-          <div className="grid w-full grid-cols-3 grid-rows-2 gap-2 bg-zinc-900 bg-opacity-20 p-4 text-center text-xs text-zinc-300">
-            <p>K/D</p>
-            <p>W/L</p>
-            <p>Matches</p>
-            <p>{team?.kd !== null ? team?.kd : "-"}</p>
-            <p>{team?.wl !== null ? team?.wl : "-"}</p>
-            <p>{team?.matches !== undefined ? team?.matches.length : "-"}</p>
-          </div>
-        </div>
+        </Link>
       )}
     </>
   );

@@ -10,6 +10,13 @@ export interface User {
   updated_at: Date;
   kd?: number;
   wl?: number;
+  matches_played?: number;
+  matches_won?: number;
+  matches_lost?: number;
+  total_kills?: number;
+  total_deaths?: number;
+  kd_10?: number;
+  wl_10?: number;
   sentRequests?: TeamRequest[];
   receivedRequests?: TeamRequest[];
   teams?: UserTeam[];
@@ -28,6 +35,12 @@ export interface Team {
   kd?: number;
   wl?: number;
   matches?: Match[];
+  matches_won?: number;
+  matches_lost?: number;
+  kd_10?: number;
+  wl_10?: number;
+  total_kills?: number;
+  total_deaths?: number;
   created_by: User;
   created_by_google_id: string;
   best_map: Map;
@@ -43,9 +56,9 @@ export interface UserTeam {
 
 export interface TeamRequest {
   id: number;
-  fromUserGoogleID: string;
-  toUserGoogleID: string;
-  teamID: number;
+  fromUserGoogleId: string;
+  toUserGoogleId: string;
+  teamId: number;
   fromUser: User;
   toUser: User;
   team: Team;
@@ -71,10 +84,10 @@ export interface Match {
   result: "win" | "loss";
   rounds_won: number;
   rounds_lost: number;
-  member_one_google_id: string;
-  member_two_google_id: string;
-  member_one_kills: number;
-  member_two_kills: number;
-  member_one_deaths: number;
-  member_two_deaths: number;
+  memberOneGoogleId: string;
+  memberTwoGoogleId: string;
+  memberOneKills: number;
+  memberOneDeaths: number;
+  memberTwoKills: number;
+  memberTwoDeaths: number;
 }

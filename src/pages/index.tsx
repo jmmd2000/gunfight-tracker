@@ -5,8 +5,6 @@ import { useEffect } from "react";
 
 export default function Home() {
   const user = useUser();
-  // const { data, isLoading, isError } = api.user.getAll.useQuery();
-  console.log(user);
   const {
     mutate: createUser,
     isLoading: creatingUser,

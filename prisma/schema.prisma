@@ -24,7 +24,13 @@ model User {
   // friends                User[]
   kd                        Float?
   wl                        Float?
-  matches_played            Int?
+  matches_played            Int?       @default(0)
+  matches_won               Int?       @default(0)
+  matches_lost              Int?       @default(0)
+  kills                     Int?       @default(0)
+  deaths                    Int?       @default(0)
+  kd_10                     Float?
+  wl_10                     Float?
   teams                     UserTeam[]
   sentRequests              TeamRequest[] @relation("requestFrom")
   receivedRequests          TeamRequest[] @relation("requestTo")
@@ -49,6 +55,13 @@ model Team {
   matches                   Match[]  
   best_map                  Map?       @relation("BestMapTeams", fields: [best_map_id], references: [id])
   best_map_id               Int?
+  kd_10                     Float?
+  wl_10                     Float?
+  matches_won               Int?       @default(0)
+  matches_lost              Int?       @default(0)
+  total_kills               Int?       @default(0)
+  total_deaths              Int?       @default(0)
+
 
   @@index([created_by_google_id])
   @@index([best_map_id])
@@ -74,6 +87,9 @@ model TeamRequest {
   toUser                    User     @relation("requestTo", fields: [toUserGoogleId], references: [google_id])
   team                      Team     @relation(fields: [teamId], references: [id])
   status                    String   @default("pending") // can be 'pending', 'accepted', 'rejected'
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+  seen                      Boolean  @default(false)
 
   @@unique([fromUserGoogleId, toUserGoogleId, teamId])
   @@index([teamId])
@@ -86,7 +102,7 @@ model Match {
   team                      Team      @relation( fields: [teamId], references: [id])
   map                       Map       @relation(fields: [mapId], references: [id])
   mapId                     Int
-  result                    String    
+  result                    String    // win or loss
   rounds_won                Int
   rounds_lost               Int
   created_at                DateTime  @default(now())

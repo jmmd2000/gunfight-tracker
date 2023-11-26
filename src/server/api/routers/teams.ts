@@ -68,6 +68,41 @@ export const teamsRouter = createTRPCRouter({
 
     return teams;
   }),
+  getByName: privateProcedure
+    .input(z.string())
+    .query(async ({ input, ctx }) => {
+      const team = (await ctx.db.team.findUnique({
+        where: { name: input },
+        include: {
+          members: {
+            include: {
+              user: true,
+            },
+          },
+          matches: {
+            include: {
+              map: true,
+            },
+          },
+        },
+      })) as unknown as Team;
+
+      return team;
+    }),
+  getByID: privateProcedure.input(z.number()).query(async ({ input, ctx }) => {
+    const team = (await ctx.db.team.findUnique({
+      where: { id: input },
+      include: {
+        members: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    })) as unknown as Team;
+
+    return team;
+  }),
   checkName: privateProcedure
     .input(z.string())
     .query(async ({ input, ctx }) => {

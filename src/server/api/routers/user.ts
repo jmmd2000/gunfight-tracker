@@ -12,6 +12,7 @@ import {
   privateProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { User } from "~/types";
 
 export const userRouter = createTRPCRouter({
   create: privateProcedure
@@ -80,4 +81,13 @@ export const userRouter = createTRPCRouter({
     const users = await ctx.db.user.findMany();
     return users;
   }),
+  getByFriendcode: privateProcedure
+    .input(z.string())
+    .query(async ({ input, ctx }) => {
+      const user = await ctx.db.user.findUnique({
+        where: { friendcode: input },
+      });
+
+      return user as unknown as User;
+    }),
 });
