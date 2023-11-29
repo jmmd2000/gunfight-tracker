@@ -13,8 +13,8 @@ export interface User {
   matches_played?: number;
   matches_won?: number;
   matches_lost?: number;
-  total_kills?: number;
-  total_deaths?: number;
+  kills?: number;
+  deaths?: number;
   kd_10?: number;
   wl_10?: number;
   sentRequests?: TeamRequest[];
@@ -76,9 +76,9 @@ export interface Map {
 
 export interface Match {
   id: number;
-  team_id: number;
+  teamId: number;
   team: Team;
-  map_id: number;
+  mapId: number;
   map: Map;
   created_at: Date;
   result: "win" | "loss";

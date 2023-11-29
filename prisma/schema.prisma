@@ -22,13 +22,13 @@ model User {
   created_at                DateTime    @default(now())
   updated_at                DateTime    @updatedAt
   // friends                User[]
-  kd                        Float?
-  wl                        Float?
-  matches_played            Int?       @default(0)
-  matches_won               Int?       @default(0)
-  matches_lost              Int?       @default(0)
-  kills                     Int?       @default(0)
-  deaths                    Int?       @default(0)
+  kd                        Float      @default(0)
+  wl                        Float    @default(0)
+  matches_played            Int     @default(0)
+  matches_won               Int      @default(0)
+  matches_lost              Int       @default(0)
+  kills                     Int       @default(0)
+  deaths                    Int       @default(0)
   kd_10                     Float?
   wl_10                     Float?
   teams                     UserTeam[]
@@ -50,17 +50,17 @@ model Team {
   created_by_google_id      String
   members                   UserTeam[]
   requests                  TeamRequest[]
-  kd                        Float?
-  wl                        Float?
+  kd                        Float   @default(0)
+  wl                        Float    @default(0)
   matches                   Match[]  
   best_map                  Map?       @relation("BestMapTeams", fields: [best_map_id], references: [id])
   best_map_id               Int?
   kd_10                     Float?
   wl_10                     Float?
-  matches_won               Int?       @default(0)
-  matches_lost              Int?       @default(0)
-  total_kills               Int?       @default(0)
-  total_deaths              Int?       @default(0)
+  matches_won               Int       @default(0)
+  matches_lost              Int       @default(0)
+  total_kills               Int       @default(0)
+  total_deaths              Int       @default(0)
 
 
   @@index([created_by_google_id])
@@ -100,7 +100,7 @@ model Match {
   id                        Int       @id @default(autoincrement())
   teamId                    Int
   team                      Team      @relation( fields: [teamId], references: [id])
-  map                       Map       @relation(fields: [mapId], references: [id])
+  map                       Map?       @relation(fields: [mapId], references: [id])
   mapId                     Int
   result                    String    // win or loss
   rounds_won                Int

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @next/next/no-img-element */
 import { Button } from "@/components/ui/button";
 import {
@@ -22,13 +24,13 @@ import {
   PlusSquare,
 } from "lucide-react";
 import { useRouter } from "next/router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { ScaleLoader } from "react-spinners";
 import { Match, type Team, type User } from "~/types";
 import { api } from "~/utils/api";
 import { useUser } from "@clerk/nextjs";
 import * as z from "zod";
-import { useForm } from "react-hook-form";
+import { FieldError, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Form,
@@ -48,6 +50,7 @@ import {
 } from "@/components/ui/select";
 import { parse } from "path";
 import { empty } from "@prisma/client/runtime/library";
+import { Separator } from "@/components/ui/separator";
 
 export default function TeamDetailPage() {
   const router = useRouter();
@@ -64,37 +67,45 @@ export default function TeamDetailPage() {
 
   return (
     <div>
-      {user.user?.id === team?.created_by_google_id && (
+      {team && (
         <div>
-          {team?.members.length === 1 && (
-            <TeamMembersDialog teamID={team?.id} />
+          {user.user?.id === team?.created_by_google_id && (
+            <div>
+              {team?.members.length === 1 && (
+                <TeamMembersDialog teamID={team?.id} />
+              )}
+              <Button size="sm" className="bg-orange-700">
+                <Pencil />
+              </Button>
+              <Button size="sm" className="bg-red-700">
+                <Trash2 />
+              </Button>
+            </div>
           )}
-          <Button size="sm" className="bg-orange-700">
-            <Pencil />
-          </Button>
-          <Button size="sm" className="bg-red-700">
-            <Trash2 />
-          </Button>
-        </div>
-      )}
-      <StatTable team={team!} />
-      {/* <StatTable user={users?.[0]} />
+          <StatTable team={team} />
+          {/* <StatTable user={users?.[0]} />
       <StatTable user={users?.[1]} /> */}
-      <NewMatchDialog team={team!} />
-      {team?.matches !== undefined && (
-        <div className="m-8 flex flex-col gap-3">
-          {team?.matches.map((match) => (
-            <MatchCard match={match} key={match.id} />
-          ))}
+          <NewMatchDialog teamID={team.id} users={users}>
+            <Button size="sm" className=" bg-blue-700">
+              <PlusSquare />
+            </Button>
+          </NewMatchDialog>
+          {team?.matches !== undefined && (
+            <div className="m-8 flex flex-col gap-3">
+              {team?.matches.map((match) => (
+                <MatchCard match={match} users={users} key={match.id} />
+              ))}
+            </div>
+          )}
         </div>
       )}
+      {!team && <div>Error fetching team</div>}
     </div>
   );
 }
 
 const StatTable = (props: { team: Team }) => {
   const { team } = props;
-  console.log(team);
   return (
     <>
       <h1 className="mx-8 mb-4 mt-8 text-2xl font-semibold text-gray-300">
@@ -244,103 +255,194 @@ const UserCard = (props: { user: User }) => {
   );
 };
 
-const NewMatchDialog = (props: { team: Team }) => {
-  const { team } = props;
+const NewMatchDialog = (props: {
+  teamID: number;
+  users: User[];
+  editMatch?: Match;
+  children: ReactNode;
+}) => {
+  const { teamID, users, children, editMatch } = props;
 
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button size="sm" className=" bg-blue-700">
-          <PlusSquare />
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add new match</DialogTitle>
         </DialogHeader>
-        <MatchForm team={team} />
+        <MatchForm users={users} teamID={teamID} editMatch={editMatch} />
       </DialogContent>
     </Dialog>
   );
 };
 
-const MatchFormSchema = z.object({
-  mapId: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val >= 0, {
-      message: "Must be a valid map",
-    }),
-  rounds_won: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val >= 0 && val <= 6, {
-      message: "Rounds won must be a number between 0 and 6",
-    }),
-  rounds_lost: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val >= 0 && val <= 6, {
-      message: "Rounds lost must be a number between 0 and 6",
-    }),
-  memberOneKills: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val >= 0, {
-      message: "Member One Kills must be a non-negative number",
-    }),
-  memberOneDeaths: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val >= 0, {
-      message: "Member One Deaths must be a non-negative number",
-    }),
-  memberTwoKills: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val >= 0, {
-      message: "Member Two Kills must be a non-negative number",
-    }),
-  memberTwoDeaths: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val >= 0, {
-      message: "Member Two Deaths must be a non-negative number",
-    }),
-});
+const MatchFormSchema = z
+  .object({
+    // Usually the form values come in as strings, but if the input
+    // is left blank as 0, it comes in as a number. So need this hacky
+    // workaround to make sure the values are always strings, so they can be converted.
+    mapId: z
+      .union([z.string(), z.number()])
+      .transform((val) =>
+        parseInt(typeof val === "number" ? val.toString() : val, 10),
+      )
+      .refine((val) => !isNaN(val) && val > 0, {
+        message: "Must be a valid map",
+      }),
 
-function MatchForm(props: { team: Team }) {
-  const { team } = props;
-  const users = team.members.map((ut) => ut.user) as unknown as User[];
+    rounds_won: z
+      .union([z.string(), z.number()])
+      .transform((val) =>
+        parseInt(typeof val === "number" ? val.toString() : val, 10),
+      )
+      .refine((val) => !isNaN(val) && val >= 0 && val <= 6, {
+        message: "Rounds won must be a number between 0 and 6",
+      }),
+
+    rounds_lost: z
+      .union([z.string(), z.number()])
+      .transform((val) =>
+        parseInt(typeof val === "number" ? val.toString() : val, 10),
+      )
+      .refine((val) => !isNaN(val) && val >= 0 && val <= 6, {
+        message: "Rounds lost must be a number between 0 and 6",
+      }),
+
+    memberOneKills: z
+      .union([z.string(), z.number()])
+      .transform((val) =>
+        parseInt(typeof val === "number" ? val.toString() : val, 10),
+      )
+      .refine((val) => !isNaN(val) && val >= 0, {
+        message: "Kills must be a non-negative number",
+      }),
+
+    memberOneDeaths: z
+      .union([z.string(), z.number()])
+      .transform((val) =>
+        parseInt(typeof val === "number" ? val.toString() : val, 10),
+      )
+      .refine((val) => !isNaN(val) && val >= 0, {
+        message: "Deaths must be a non-negative number",
+      }),
+
+    memberTwoKills: z
+      .union([z.string(), z.number()])
+      .transform((val) =>
+        parseInt(typeof val === "number" ? val.toString() : val, 10),
+      )
+      .refine((val) => !isNaN(val) && val >= 0, {
+        message: "Kills must be a non-negative number",
+      }),
+
+    memberTwoDeaths: z
+      .union([z.string(), z.number()])
+      .transform((val) =>
+        parseInt(typeof val === "number" ? val.toString() : val, 10),
+      )
+      .refine((val) => !isNaN(val) && val >= 0, {
+        message: "Deaths must be a non-negative number",
+      }),
+  })
+  .superRefine((data, context) => {
+    if (data.rounds_won + data.rounds_lost > 11) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The sum of rounds won and rounds lost must not exceed 11",
+        path: ["rounds_sum"],
+      });
+    }
+  });
+
+function MatchForm(props: {
+  teamID: number;
+  editMatch?: Match;
+  users: User[];
+}) {
+  const { teamID, editMatch, users } = props;
+
+  console.log("editMatch", editMatch);
+
+  // const users = team.members.map((ut) => ut.user) as unknown as User[];
   const { data: maps, isLoading, isError } = api.map.getAll.useQuery();
   const { mutate: createMatch } = api.match.create.useMutation();
+  const { mutate: updateMatch } = api.match.update.useMutation();
 
   const form = useForm<z.infer<typeof MatchFormSchema>>({
     resolver: zodResolver(MatchFormSchema),
+    defaultValues: {
+      mapId: editMatch?.mapId ?? 1,
+      rounds_won: editMatch?.rounds_won ?? 0,
+      rounds_lost: editMatch?.rounds_lost ?? 0,
+      memberOneKills: editMatch?.memberOneKills ?? 0,
+      memberOneDeaths: editMatch?.memberOneDeaths ?? 0,
+      memberTwoKills: editMatch?.memberTwoKills ?? 0,
+      memberTwoDeaths: editMatch?.memberTwoDeaths ?? 0,
+    },
+    mode: "onChange",
   });
 
-  console.log("form", form.formState.errors);
-
   function onSubmit(values: z.infer<typeof MatchFormSchema>) {
-    const result = values.rounds_won > values.rounds_lost ? "win" : "loss";
-    createMatch({
-      mapId: values.mapId,
-      rounds_won: values.rounds_won,
-      rounds_lost: values.rounds_lost,
-      memberOneKills: values.memberOneKills,
-      memberOneDeaths: values.memberOneDeaths,
-      memberTwoKills: values.memberTwoKills,
-      memberTwoDeaths: values.memberTwoDeaths,
-      result: result,
-      teamId: team.id,
-      memberOneGoogleId: users[0]!.google_id,
-      memberTwoGoogleId: users[1]!.google_id,
-    });
+    if (editMatch) {
+      const result = values.rounds_won > values.rounds_lost ? "win" : "loss";
+      console.log("values", values);
+      updateMatch({
+        matchId: editMatch.id,
+        mapId: values.mapId,
+        rounds_won: values.rounds_won,
+        rounds_lost: values.rounds_lost,
+        memberOneKills: values.memberOneKills,
+        memberOneDeaths: values.memberOneDeaths,
+        memberTwoKills: values.memberTwoKills,
+        memberTwoDeaths: values.memberTwoDeaths,
+        result: result,
+        teamId: teamID,
+        memberOneGoogleId: users[0]!.google_id,
+        memberTwoGoogleId: users[1]!.google_id,
+      });
+    } else {
+      const result = values.rounds_won > values.rounds_lost ? "win" : "loss";
+      console.log("values", values);
+      createMatch({
+        mapId: values.mapId,
+        rounds_won: values.rounds_won,
+        rounds_lost: values.rounds_lost,
+        memberOneKills: values.memberOneKills,
+        memberOneDeaths: values.memberOneDeaths,
+        memberTwoKills: values.memberTwoKills,
+        memberTwoDeaths: values.memberTwoDeaths,
+        result: result,
+        teamId: teamID,
+        memberOneGoogleId: users[0]!.google_id,
+        memberTwoGoogleId: users[1]!.google_id,
+      });
+    }
   }
 
+  useEffect(() => {
+    console.log(form.formState.isSubmitting, form.formState.isValid);
+    console.log(form.formState);
+    console.log(maps);
+  }, [form.formState, form.formState.isSubmitting, form.formState.isValid]);
+
+  //! Cant read properties of undefined toString()?
+  let editMatchMapID = "1";
+  if (editMatch?.mapId) {
+    editMatchMapID = editMatch.mapId.toString();
+  }
+
+  // This is a hacky workaround to get the error message to display
+  // Zod dynamically adds the field error to the formState.errors object
+  // Typescript doesn't understand, so we ignore the error
+  // @ts-ignore
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const roundSumError = form.formState.errors.rounds_sum;
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 space-y-8">
+        {roundSumError && (
+          <p className="text-sm text-red-500">{roundSumError.message}</p>
+        )}
         <div className="flex items-center justify-center gap-4">
           <FormField
             control={form.control}
@@ -352,6 +454,7 @@ function MatchForm(props: { team: Team }) {
                     type="number"
                     min={0}
                     max={6}
+                    defaultValue={editMatch?.rounds_won ?? 0}
                     className="max-w-[75px] border-zinc-700 bg-transparent text-3xl text-zinc-200"
                     {...field}
                   />
@@ -371,6 +474,7 @@ function MatchForm(props: { team: Team }) {
                     type="number"
                     min={0}
                     max={6}
+                    defaultValue={editMatch?.rounds_lost ?? 0}
                     className="max-w-[75px] border-zinc-700 bg-transparent text-3xl text-zinc-200"
                     {...field}
                   />
@@ -381,6 +485,8 @@ function MatchForm(props: { team: Team }) {
             )}
           />
         </div>
+        {/* //! Somewhere along the line, mapId is becoming 0 when a match is edited
+        //! I dont know why, the select is taking the correct value */}
         <FormField
           control={form.control}
           name="mapId"
@@ -388,7 +494,11 @@ function MatchForm(props: { team: Team }) {
             <FormItem>
               <FormLabel>Map</FormLabel>
               <FormControl>
-                <Select onValueChange={field.onChange}>
+                <Select
+                  onValueChange={field.onChange}
+                  // defaultValue={editMatchMapID}
+                  defaultValue={editMatch?.mapId.toString()}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Choose a map" />
@@ -420,6 +530,7 @@ function MatchForm(props: { team: Team }) {
                       <Input
                         type="number"
                         min={0}
+                        defaultValue={editMatch?.memberOneKills ?? 0}
                         className="max-w-[65px] border-zinc-700 bg-transparent text-xl text-zinc-200"
                         {...field}
                       />
@@ -438,6 +549,7 @@ function MatchForm(props: { team: Team }) {
                       <Input
                         type="number"
                         min={0}
+                        defaultValue={editMatch?.memberOneDeaths ?? 0}
                         className="max-w-[65px] border-zinc-700 bg-transparent text-xl text-zinc-200"
                         {...field}
                       />
@@ -461,6 +573,7 @@ function MatchForm(props: { team: Team }) {
                       <Input
                         type="number"
                         min={0}
+                        defaultValue={editMatch?.memberTwoKills ?? 0}
                         className="max-w-[65px] border-zinc-700 bg-transparent text-xl text-zinc-200"
                         {...field}
                       />
@@ -479,6 +592,7 @@ function MatchForm(props: { team: Team }) {
                       <Input
                         type="number"
                         min={0}
+                        defaultValue={editMatch?.memberTwoDeaths ?? 0}
                         className="max-w-[65px] border-zinc-700 bg-transparent text-xl text-zinc-200"
                         {...field}
                       />
@@ -494,7 +608,8 @@ function MatchForm(props: { team: Team }) {
         <Button
           type="submit"
           variant="secondary"
-          disabled={Object.keys(form.formState.errors).length > 0}
+          // disabled={Object.keys(form.formState.errors).length > 0}
+          disabled={form.formState.isSubmitting || !form.formState.isValid}
         >
           Submit
         </Button>
@@ -503,28 +618,28 @@ function MatchForm(props: { team: Team }) {
   );
 }
 
-export const MatchCard = (props: { match: Match }) => {
-  const { match } = props;
+export const MatchCard = (props: { match: Match; users: User[] }) => {
+  const { match, users } = props;
   // const { data: map, isLoading, isError } = api.map.getByID.useQuery(
   //   match.mapId
   // );
 
   const gradientEnd =
     match?.result === "win" ? "to-green-600/80" : "to-red-600/80";
-  console.log(match);
 
   return (
     <div
-      className={`flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-opacity-10 bg-gradient-to-r from-zinc-700/10 from-40% via-zinc-700/10 ${gradientEnd} backdrop-filter" overflow-hidden bg-clip-padding p-4 shadow-lg backdrop-blur-lg `}
+      className={`flex items-center justify-center gap-4 rounded-md border border-zinc-700 bg-opacity-10 bg-gradient-to-r from-zinc-700/10 from-40% via-zinc-700/10 ${gradientEnd} backdrop-filter" m-2 h-24 overflow-hidden bg-clip-padding p-2 shadow-lg backdrop-blur-lg `}
     >
-      <div className="flex flex-col items-start">
+      <div className="flex items-start">
         <img
           src={match.map.map_image_url}
           alt={`Image of ${match.map.name}`}
           className="absolute left-40 top-1/2 z-0 max-w-[350px] -translate-x-1/2 -translate-y-1/2 transform"
         />
+        <div className="w-[350px]"></div>
 
-        <div className="ml-[350px] ">
+        <div className="w-[200px]">
           <h1 className="text-xl font-semibold text-zinc-300">
             {match.map.name}
           </h1>
@@ -534,30 +649,34 @@ export const MatchCard = (props: { match: Match }) => {
         </div>
       </div>
 
-      <div className="ml-auto">
-        <div className="flex items-center gap-2">
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-xl font-semibold text-zinc-200">
-              {match?.memberOneKills} - {match?.memberOneDeaths}
-            </p>
-            <p className="text-sm font-medium text-zinc-300">
-              {Math.round(
-                (match?.memberOneKills / match?.memberOneDeaths) * 100,
-              ) / 100}
-            </p>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-xl font-semibold text-zinc-200">
-              {match?.memberTwoKills} - {match?.memberTwoDeaths}
-            </p>
-            <p className="text-sm font-medium text-zinc-300">
-              {Math.round(
-                (match?.memberTwoKills / match?.memberTwoDeaths) * 100,
-              ) / 100}
-            </p>
-          </div>
-        </div>
+      <div className="flex gap-4">
+        <MatchCardPlayerStats
+          username={users[0]?.username}
+          kills={match?.memberOneKills}
+          deaths={match?.memberOneDeaths}
+        />
+        <div className="h-[70px] border border-l-zinc-700"></div>
+        <MatchCardPlayerStats
+          username={users[1]?.username}
+          kills={match?.memberTwoKills}
+          deaths={match?.memberTwoDeaths}
+        />
       </div>
+
+      {/* <div className="flex w-[150px] items-center justify-center gap-4"> */}
+      <NewMatchDialog teamID={match.teamId} users={users} editMatch={match}>
+        <Button
+          size="sm"
+          className="m-auto border border-zinc-700 hover:bg-zinc-950"
+        >
+          <Pencil />
+        </Button>
+      </NewMatchDialog>
+
+      {/* <Button size="sm" className="border border-zinc-700 hover:bg-zinc-950">
+          <Trash2 />
+        </Button>
+      </div> */}
 
       <div className="ml-auto flex flex-col items-end">
         <p className="text-xl font-semibold text-zinc-200">
@@ -567,6 +686,41 @@ export const MatchCard = (props: { match: Match }) => {
           {match?.result === "win" ? "Win" : "Loss"}
         </p>
       </div>
+    </div>
+  );
+};
+
+const MatchCardPlayerStats = (props: {
+  username: string | undefined;
+  kills: number;
+  deaths: number;
+}) => {
+  const { username, kills, deaths } = props;
+  return (
+    <div className="flex flex-col items-center justify-evenly gap-4">
+      <p className="text-xs font-semibold text-zinc-400">{username}</p>
+      <div className="grid grid-cols-2">
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-[9px] font-semibold text-zinc-200">Kills</p>
+          <p className="text-lg font-semibold text-zinc-200">{kills}</p>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-[9px] font-semibold text-zinc-200">Deaths</p>
+          <p className="text-lg font-semibold text-zinc-200">{deaths}</p>
+        </div>
+        {/* <div className="flex flex-col items-center gap-1">
+          <p className="text-[9px] font-semibold text-zinc-200">K/D</p>
+          <p className="text-lg font-semibold text-zinc-200">
+            {Math.round((kills / deaths) * 100) / 100}
+          </p>
+        </div> */}
+      </div>
+      {/* <p className="text-xl font-semibold text-zinc-200">
+        {kills} - {deaths}
+      </p>
+      <p className="text-sm font-medium text-zinc-300">
+        {Math.round((kills / deaths) * 100) / 100}
+      </p> */}
     </div>
   );
 };

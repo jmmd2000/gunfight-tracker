@@ -52,7 +52,7 @@ export const teamrequestsRouter = createTRPCRouter({
       },
     });
 
-    console.log(requests);
+    // console.log(requests);
 
     return requests as unknown as TeamRequest[];
   }),

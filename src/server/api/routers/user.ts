@@ -90,4 +90,13 @@ export const userRouter = createTRPCRouter({
 
       return user as unknown as User;
     }),
+  getCurrent: privateProcedure.query(async ({ ctx }) => {
+    const currentUser = ctx.currentUser;
+
+    const user = await ctx.db.user.findUnique({
+      where: { google_id: currentUser },
+    });
+
+    return user as unknown as User;
+  }),
 });
