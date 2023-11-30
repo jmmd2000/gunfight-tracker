@@ -122,4 +122,37 @@ export const teamsRouter = createTRPCRouter({
         name_available: true,
       };
     }),
+  updateJoinerPermission: privateProcedure
+    .input(
+      z.object({
+        teamId: z.number(),
+        allowJoinerToAddMatches: z.boolean(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const team = await ctx.db.team.findUnique({
+        where: { id: input.teamId },
+      });
+
+      // if (team!.created_by_google_id !== currentUser) {
+      //   return {
+      //     success: false,
+      //     message: "You are not the admin of this team.",
+      //   };
+      // }
+
+      if (team?.allowJoinerToAddMatches !== input.allowJoinerToAddMatches) {
+        await ctx.db.team.update({
+          where: { id: input.teamId },
+          data: {
+            allowJoinerToAddMatches: input.allowJoinerToAddMatches,
+          },
+        });
+      }
+
+      // return {
+      //   success: true,
+      //   message: "Successfully updated permission.",
+      // };
+    }),
 });

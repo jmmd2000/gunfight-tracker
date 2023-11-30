@@ -8,15 +8,17 @@ export interface User {
   friendcode: string;
   created_at: Date;
   updated_at: Date;
-  kd?: number;
-  wl?: number;
-  matches_played?: number;
-  matches_won?: number;
-  matches_lost?: number;
-  kills?: number;
-  deaths?: number;
+  kd: number;
+  wl: number;
+  matches_played: number;
+  matches_won: number;
+  matches_lost: number;
+  kills: number;
+  deaths: number;
   kd_10?: number;
   wl_10?: number;
+  rounds_won: number;
+  rounds_lost: number;
   sentRequests?: TeamRequest[];
   receivedRequests?: TeamRequest[];
   teams?: UserTeam[];
@@ -32,19 +34,26 @@ export interface Team {
   created_at: Date;
   members: UserTeam[];
   requests?: TeamRequest[];
-  kd?: number;
-  wl?: number;
+  kd: number;
+  wl: number;
   matches?: Match[];
-  matches_won?: number;
-  matches_lost?: number;
+  matches_won: number;
+  matches_lost: number;
   kd_10?: number;
   wl_10?: number;
-  total_kills?: number;
-  total_deaths?: number;
+  rounds_won: number;
+  rounds_lost: number;
+  total_kills: number;
+  total_deaths: number;
+  memberOneTotalKills: number;
+  memberOneTotalDeaths: number;
+  memberTwoTotalKills: number;
+  memberTwoTotalDeaths: number;
   created_by: User;
   created_by_google_id: string;
   best_map: Map;
   best_map_id: number;
+  allowJoinerToAddMatches: boolean;
 }
 
 export interface UserTeam {

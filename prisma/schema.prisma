@@ -27,6 +27,8 @@ model User {
   matches_played            Int     @default(0)
   matches_won               Int      @default(0)
   matches_lost              Int       @default(0)
+  rounds_won                Int       @default(0)
+  rounds_lost               Int       @default(0)
   kills                     Int       @default(0)
   deaths                    Int       @default(0)
   kd_10                     Float?
@@ -61,6 +63,13 @@ model Team {
   matches_lost              Int       @default(0)
   total_kills               Int       @default(0)
   total_deaths              Int       @default(0)
+  memberOneTotalKills       Int       @default(0)
+  memberOneTotalDeaths      Int       @default(0)
+  memberTwoTotalKills       Int       @default(0)
+  memberTwoTotalDeaths      Int       @default(0)
+  rounds_won                Int       @default(0)
+  rounds_lost               Int       @default(0)
+  allowJoinerToAddMatches   Boolean   @default(false)
 
 
   @@index([created_by_google_id])

@@ -19,7 +19,7 @@ import {
   Pencil,
   Trash2,
   CheckCircle2,
-  Plus,
+  Settings,
   XCircle,
   PlusSquare,
 } from "lucide-react";
@@ -48,9 +48,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { parse } from "path";
-import { empty } from "@prisma/client/runtime/library";
-import { Separator } from "@/components/ui/separator";
+import { calculateRatio } from "~/server/api/routers/match";
+import { Switch } from "@/components/ui/switch";
 
 export default function TeamDetailPage() {
   const router = useRouter();
@@ -64,27 +63,21 @@ export default function TeamDetailPage() {
 
   const userTeams = team?.members;
   const users = userTeams?.map((ut) => ut.user) as unknown as User[];
+  const userID = user.user?.id;
 
   return (
     <div>
       {team && (
         <div>
-          {user.user?.id === team?.created_by_google_id && (
+          {/* {user.user?.id === team?.created_by_google_id && (
             <div>
-              {team?.members.length === 1 && (
-                <TeamMembersDialog teamID={team?.id} />
-              )}
-              <Button size="sm" className="bg-orange-700">
-                <Pencil />
-              </Button>
-              <Button size="sm" className="bg-red-700">
-                <Trash2 />
-              </Button>
+              <TeamSettingsDialog
+                team={team}
+                joinerPermission={team?.allowJoinerToAddMatches}
+              />
             </div>
-          )}
-          <StatTable team={team} />
-          {/* <StatTable user={users?.[0]} />
-      <StatTable user={users?.[1]} /> */}
+          )} */}
+          <StatTable team={team} userID={userID} />
           <NewMatchDialog teamID={team.id} users={users}>
             <Button size="sm" className=" bg-blue-700">
               <PlusSquare />
@@ -104,66 +97,133 @@ export default function TeamDetailPage() {
   );
 }
 
-const StatTable = (props: { team: Team }) => {
-  const { team } = props;
+const StatTable = (props: { team: Team; userID: string }) => {
+  const { team, userID } = props;
   return (
     <>
-      <h1 className="mx-8 mb-4 mt-8 text-2xl font-semibold text-gray-300">
-        {team?.name}
-      </h1>
-      <div className="mx-8 my-4 grid grid-cols-9 grid-rows-2 border border-zinc-900 bg-zinc-800 bg-opacity-10 bg-clip-padding p-2 text-center text-zinc-200 shadow-lg backdrop-blur-lg backdrop-filter">
-        <p className="text-xs text-zinc-400">W/L</p>
-        <p className="text-xs text-zinc-400">W/L Last 10</p>
-        <p className="text-xs text-zinc-400">Played</p>
-        <p className="text-xs text-zinc-400">Won</p>
-        <p className="text-xs text-zinc-400">Lost</p>
-        <p className="text-xs text-zinc-400">K/D</p>
-        <p className="text-xs text-zinc-400">K/D Last 10</p>
-        <p className="text-xs text-zinc-400">Kills</p>
-        <p className="text-xs text-zinc-400">Deaths</p>
-        <p>{team?.wl}</p>
-        <p>{team?.wl_10}</p>
-        <p>{team?.matches?.length}</p>
-        <p>{team?.matches_won}</p>
-        <p>{team?.matches_lost}</p>
-        <p>{team?.kd}</p>
-        <p>{team?.kd_10}</p>
-        <p>{team?.total_kills}</p>
-        <p>{team?.total_deaths}</p>
-      </div>
+      {team && (
+        <div className="mt-4">
+          <div className="flex items-center gap-4">
+            <h1 className="mb-4 ml-8 mt-4 text-2xl font-semibold text-gray-300">
+              {team.name}
+            </h1>
+            {userID === team?.created_by_google_id && (
+              <TeamSettingsDialog
+                team={team}
+                joinerPermission={team?.allowJoinerToAddMatches}
+              />
+            )}
+          </div>
+
+          <div className="mx-8 my-4 grid grid-cols-11 grid-rows-2 border border-zinc-900 bg-zinc-800 bg-opacity-10 bg-clip-padding p-2 text-center text-zinc-200 shadow-lg backdrop-blur-lg backdrop-filter">
+            <p className="text-xs text-zinc-400">W/L</p>
+            <p className="text-xs text-zinc-400">W/L Last 10</p>
+            <p className="text-xs text-zinc-400">Played</p>
+            <p className="text-xs text-zinc-400">Won</p>
+            <p className="text-xs text-zinc-400">Lost</p>
+            <p className="text-xs text-zinc-400">K/D</p>
+            <p className="text-xs text-zinc-400">K/D Last 10</p>
+            <p className="text-xs text-zinc-400">Kills</p>
+            <p className="text-xs text-zinc-400">Deaths</p>
+            <p className="text-xs text-zinc-400">rounds won</p>
+            <p className="text-xs text-zinc-400">rounds lost</p>
+            <p>{team.wl}</p>
+            <p>{team.wl_10}</p>
+            <p>{team.matches_won + team.matches_lost}</p>
+            <p>{team.matches_won}</p>
+            <p>{team.matches_lost}</p>
+            <p>{team.kd}</p>
+            <p>{team.kd_10}</p>
+            <p>{team.total_kills}</p>
+            <p>{team.total_deaths}</p>
+            <p>{team.rounds_won}</p>
+            <p>{team.rounds_lost}</p>
+          </div>
+        </div>
+      )}
     </>
   );
 };
 
-//- TODO: implement this
-const UserStatCard = (props: { user: User }) => {
-  return <div></div>;
-};
+// //- TODO: implement this
+// const UserStatCard = (props: { user: User }) => {
+//   return <div></div>;
+// };
 
-const TeamMembersDialog = (props: { teamID: number | undefined }) => {
+//! This component is all over the place, needs to be refactored
+const TeamSettingsDialog = (props: {
+  team: Team;
+  joinerPermission: boolean;
+}) => {
   const [friendcode, setFriendcode] = useState("");
+  const [newTeamName, setNewTeamName] = useState("");
 
   const { data, isLoading, isError, refetch } =
     api.user.getByFriendcode.useQuery(friendcode, {
       enabled: false,
     });
 
-  const { mutate: createTeamRequest } = api.teamrequest.create.useMutation();
+  const {
+    data: teamNameAvailable,
+    isLoading: checkingTeamName,
+    isError: errorCheckingName,
+    refetch: checkTeamName,
+  } = api.team.checkName.useQuery(newTeamName, {
+    enabled: false,
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { mutate: createTeamRequest } = api.teamrequest.create.useMutation();
+  const { mutate: updateJoinerPermission } =
+    api.team.updateJoinerPermission.useMutation();
+
+  const handleFriendcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFriendcode(e.target.value);
+  };
+
+  const handleTeamNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewTeamName(e.target.value);
   };
 
   const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    if (data && props.teamID) {
+    if (data && props.team.id) {
       createTeamRequest({
         toUserGoogleID: data.google_id,
-        teamID: props.teamID,
+        teamID: props.team.id,
       });
     }
   };
 
+  const handleUpdateJoinerPermission = (checked: boolean) => {
+    if (props.team.id) {
+      updateJoinerPermission({
+        teamId: props.team.id,
+        allowJoinerToAddMatches: checked,
+      });
+    }
+  };
+
+  // const handleDeleteTeam = () => {};
+
+  const handleRemovePlayer = () => {
+    if (
+      confirm(
+        "Are you sure you want to remove this team member?\nThis will remove all matches in this team that they participated in.",
+      )
+    ) {
+      // deleteMatch(editMatch.id);
+      //   , {
+      //   onSuccess: () => {
+      //     // Handle success
+      //   },
+      //   onError: (error) => {
+      //     // Handle error
+      //   },
+      // });
+    }
+  };
+
+  // This checks if a user with the given friendcode exists
   useEffect(() => {
     async function checkFriendcode() {
       await refetch();
@@ -174,65 +234,172 @@ const TeamMembersDialog = (props: { teamID: number | undefined }) => {
     }
   }, [friendcode, refetch]);
 
+  // This checks if the team name is available
+  useEffect(() => {
+    async function checkName() {
+      await checkTeamName();
+    }
+
+    if (
+      newTeamName.length > 0 &&
+      newTeamName !== "" &&
+      newTeamName !== "New Team"
+    ) {
+      void checkName();
+    }
+  }, [newTeamName, checkTeamName]);
+
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size="sm" className=" bg-blue-700">
-          <UserRoundCog />
-        </Button>
+        {/* <Button size="sm"> */}
+        <div className=" text-zinc-500 transition-colors hover:cursor-pointer hover:text-zinc-200">
+          <Settings />
+        </div>
+
+        {/* </Button> */}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add team member</DialogTitle>
-          <DialogDescription>
-            Add a user to your team with their friendcode{" "}
-            <i>(e.g. resident-gold-mink)</i>.
-          </DialogDescription>
+          <DialogTitle>Team settings</DialogTitle>
         </DialogHeader>
-
+        {/* //* START OF NEW TEAM NAME INPUT */}
         <div className="grid gap-2 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="friendcode" className="text-right">
-              Friendcode
-            </Label>
+          <div className="grid w-full max-w-sm items-center gap-1.5">
+            <Label htmlFor="name">Team name</Label>
             <Input
-              id="friendcode"
+              id="name"
               className="col-span-3"
-              onBlur={handleChange}
+              placeholder="New team name..."
+              onBlur={handleTeamNameChange}
             />
           </div>
-          <div className="flex flex-col items-center">
-            {data?.google_id === undefined && (
-              <div className="flex items-center gap-2">
-                <XCircle color="#ef4444" />
-                <DialogDescription className="text-red-500">
-                  User not found
-                </DialogDescription>
-              </div>
-            )}
-            {data?.google_id !== undefined && (
-              <div className="mt-2 flex flex-col items-center gap-2">
+          <div className="flex w-full flex-col items-center justify-center">
+            {teamNameAvailable !== undefined &&
+              !teamNameAvailable.name_available &&
+              newTeamName !== "" && (
+                <div className="flex items-center gap-2">
+                  <XCircle color="#ef4444" />
+                  <DialogDescription className="text-red-500">
+                    Team name already exists
+                  </DialogDescription>
+                </div>
+              )}
+            {teamNameAvailable !== undefined &&
+              teamNameAvailable.name_available &&
+              newTeamName !== "" && (
                 <div className="flex items-center gap-2">
                   <CheckCircle2 color="#22c55e" />
                   <DialogDescription className="text-green-500">
-                    User found!
+                    Team name available!
                   </DialogDescription>
                 </div>
-                <UserCard user={data} />
-              </div>
-            )}
+              )}
+          </div>
+          <div className="flex justify-end">
+            <Button
+              variant="secondary"
+              disabled={checkingTeamName || !teamNameAvailable?.name_available}
+              onClick={handleSubmit}
+            >
+              Update name
+            </Button>
           </div>
         </div>
-        <DialogFooter>
-          <Button
-            // type="submit"
-            variant="secondary"
-            disabled={isLoading || data?.google_id === undefined}
-            onClick={handleSubmit}
-          >
-            Add
-          </Button>
-        </DialogFooter>
+
+        {/* //* START OF NEW TEAM MEMBER INPUT */}
+        {props.team.members.length === 2 && (
+          <div className="flex items-end gap-1 py-4">
+            <div className="w-[90%]">
+              <Label htmlFor="friendcode">Remove team member</Label>
+              <div className="m-auto  rounded-md border border-zinc-700 bg-zinc-950/40 p-2">
+                <p className="font-semibold text-zinc-400">
+                  {props.team.members[1]?.user.username}
+                </p>
+              </div>
+            </div>
+            <button
+              className="flex h-[42px] w-[10%] items-center justify-center rounded-md bg-red-500 text-zinc-50 transition-all hover:bg-red-700"
+              onClick={handleRemovePlayer}
+            >
+              <Trash2 size={20} />
+            </button>
+          </div>
+        )}
+        {props.team.members.length === 1 && (
+          <div className="grid gap-2 py-4">
+            <div className="grid w-full max-w-sm items-center gap-1.5">
+              <Label htmlFor="friendcode">Add team member</Label>
+              <Input
+                id="friendcode"
+                className="col-span-3"
+                onBlur={handleFriendcodeChange}
+                placeholder="Via friendcode, e.g. resident-gold-mink..."
+              />
+            </div>
+            <div className="flex flex-col items-center">
+              {data?.google_id === undefined && friendcode !== "" && (
+                <div className="flex items-center gap-2">
+                  <XCircle color="#ef4444" />
+                  <DialogDescription className="text-red-500">
+                    User not found
+                  </DialogDescription>
+                </div>
+              )}
+              {data?.google_id !== undefined && friendcode !== "" && (
+                <div className="mt-2 flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 color="#22c55e" />
+                    <DialogDescription className="text-green-500">
+                      User found!
+                    </DialogDescription>
+                  </div>
+                  <UserCard user={data} />
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <Button
+                variant="secondary"
+                disabled={isLoading || data?.google_id === undefined}
+                onClick={handleSubmit}
+              >
+                Add member
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* //* START OF PERMISSIONS SWITCH */}
+        <div className="grid gap-2 py-4">
+          <div className="flex flex-row items-center justify-between rounded-lg p-4">
+            <div className="space-y-0.5">
+              <Label className="text-base">Member two permissions</Label>
+              <DialogDescription>
+                Allow member two to add matches?
+              </DialogDescription>
+            </div>
+            <Switch
+            // checked={props.joinerPermission}
+            // onCheckedChange={handleUpdateJoinerPermission}
+            />
+          </div>
+        </div>
+        {/* //* START OF TEAM DELETE */}
+        <div className="grid gap-2 py-4">
+          <div className="flex flex-row items-center justify-between rounded-lg p-4">
+            <div className="space-y-0.5">
+              <Label className="text-base">Delete Team</Label>
+              <DialogDescription>This cannot be undone.</DialogDescription>
+            </div>
+            <Button
+              variant="destructive"
+              className="border-2 border-transparent hover:border-red-700 hover:bg-transparent"
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -367,6 +534,7 @@ function MatchForm(props: {
   const { data: maps, isLoading, isError } = api.map.getAll.useQuery();
   const { mutate: createMatch } = api.match.create.useMutation();
   const { mutate: updateMatch } = api.match.update.useMutation();
+  const { mutate: deleteMatch } = api.match.delete.useMutation();
 
   const form = useForm<z.infer<typeof MatchFormSchema>>({
     resolver: zodResolver(MatchFormSchema),
@@ -419,17 +587,19 @@ function MatchForm(props: {
     }
   }
 
-  useEffect(() => {
-    console.log(form.formState.isSubmitting, form.formState.isValid);
-    console.log(form.formState);
-    console.log(maps);
-  }, [form.formState, form.formState.isSubmitting, form.formState.isValid]);
-
-  //! Cant read properties of undefined toString()?
-  let editMatchMapID = "1";
-  if (editMatch?.mapId) {
-    editMatchMapID = editMatch.mapId.toString();
-  }
+  const handleDelete = () => {
+    if (editMatch && confirm("Are you sure you want to delete this match?")) {
+      deleteMatch(editMatch.id);
+      //   , {
+      //   onSuccess: () => {
+      //     // Handle success
+      //   },
+      //   onError: (error) => {
+      //     // Handle error
+      //   },
+      // });
+    }
+  };
 
   // This is a hacky workaround to get the error message to display
   // Zod dynamically adds the field error to the formState.errors object
@@ -485,8 +655,6 @@ function MatchForm(props: {
             )}
           />
         </div>
-        {/* //! Somewhere along the line, mapId is becoming 0 when a match is edited
-        //! I dont know why, the select is taking the correct value */}
         <FormField
           control={form.control}
           name="mapId"
@@ -496,7 +664,6 @@ function MatchForm(props: {
               <FormControl>
                 <Select
                   onValueChange={field.onChange}
-                  // defaultValue={editMatchMapID}
                   defaultValue={editMatch?.mapId.toString()}
                 >
                   <FormControl>
@@ -605,14 +772,40 @@ function MatchForm(props: {
             </div>
           </div>
         </div>
-        <Button
-          type="submit"
-          variant="secondary"
-          // disabled={Object.keys(form.formState.errors).length > 0}
-          disabled={form.formState.isSubmitting || !form.formState.isValid}
-        >
-          Submit
-        </Button>
+        <div className="flex justify-end">
+          {!editMatch && (
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={form.formState.isSubmitting || !form.formState.isValid}
+            >
+              Submit
+            </Button>
+          )}
+
+          {!!editMatch && (
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                className="bg-blue-700 hover:bg-blue-800"
+                disabled={
+                  form.formState.isSubmitting || !form.formState.isValid
+                }
+              >
+                Update
+              </Button>
+              <Button
+                className="bg-red-700 hover:bg-red-800"
+                disabled={
+                  form.formState.isSubmitting || !form.formState.isValid
+                }
+                onClick={handleDelete}
+              >
+                Delete
+              </Button>
+            </div>
+          )}
+        </div>
       </form>
     </Form>
   );

@@ -20,6 +20,10 @@ export default function StatsPage() {
           <p>matches_lost: {data.matches_lost}</p>
           <p>kills: {data.kills}</p>
           <p>deaths: {data.deaths}</p>
+          <p>kd_10: {data.kd_10}</p>
+          <p>wl_10: {data.wl_10}</p>
+          <p>rounds_won: {data.rounds_won}</p>
+          <p>rounds_lost: {data.rounds_lost}</p>
         </div>
       )}
     </div>
