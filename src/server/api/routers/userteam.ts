@@ -117,6 +117,15 @@ export const userteamsRouter = createTRPCRouter({
         }
       }
 
+      console.log("m1Kills", m1Kills);
+      console.log("m1Deaths", m1Deaths);
+      console.log("m2Kills", m2Kills);
+      console.log("m2Deaths", m2Deaths);
+      console.log("wins", wins);
+      console.log("losses", losses);
+      console.log("rounds_won", rounds_won);
+      console.log("rounds_lost", rounds_lost);
+
       if (memberOne) {
         const updatedKills = memberOne?.kills - m1Kills;
         const updatedDeaths = memberOne?.deaths - m1Deaths;
@@ -155,6 +164,13 @@ export const userteamsRouter = createTRPCRouter({
 
         const wl_10 = calculateRatio(m1Wins10, m1Losses10);
         const kd_10 = calculateRatio(m1Kills10, m1Deaths10);
+
+        console.log("m1Kills10", m1Kills10);
+        console.log("m1Deaths10", m1Deaths10);
+        console.log("m1Wins10", m1Wins10);
+        console.log("m1Losses10", m1Losses10);
+        console.log("wl_10", wl_10);
+        console.log("kd_10", kd_10);
 
         const updatedMemberOne = await ctx.db.user.update({
           where: {
@@ -215,6 +231,13 @@ export const userteamsRouter = createTRPCRouter({
         const wl_10 = calculateRatio(m2Wins10, m2Losses10);
         const kd_10 = calculateRatio(m2Kills10, m2Deaths10);
 
+        console.log("m2Kills10", m2Kills10);
+        console.log("m2Deaths10", m2Deaths10);
+        console.log("m2Wins10", m2Wins10);
+        console.log("m2Losses10", m2Losses10);
+        console.log("wl_10", wl_10);
+        console.log("kd_10", kd_10);
+
         const updatedMemberTwo = await ctx.db.user.update({
           where: {
             google_id: memberTwo?.google_id,
@@ -241,20 +264,20 @@ export const userteamsRouter = createTRPCRouter({
             id: team?.id,
           },
           data: {
-            matches_won: team?.matches_won - wins,
-            matches_lost: team?.matches_lost - losses,
-            memberOneTotalKills: team?.memberOneTotalKills - m1Kills,
-            memberOneTotalDeaths: team?.memberOneTotalDeaths - m1Deaths,
-            memberTwoTotalKills: team?.memberTwoTotalKills - m2Kills,
-            memberTwoTotalDeaths: team?.memberTwoTotalDeaths - m2Deaths,
-            total_kills: team?.total_kills - (m1Kills + m2Kills),
-            total_deaths: team?.total_deaths - (m1Deaths + m2Deaths),
+            matches_won: 0,
+            matches_lost: 0,
+            memberOneTotalKills: 0,
+            memberOneTotalDeaths: 0,
+            memberTwoTotalKills: 0,
+            memberTwoTotalDeaths: 0,
+            total_kills: 0,
+            total_deaths: 0,
             kd_10: 0,
             wl_10: 0,
             kd: 0,
             wl: 0,
-            rounds_won: team?.rounds_won - rounds_won,
-            rounds_lost: team?.rounds_lost - rounds_lost,
+            rounds_won: 0,
+            rounds_lost: 0,
             // kd_10:
             //   team?.total_kills -
             //   m1Kills +
@@ -272,6 +295,16 @@ export const userteamsRouter = createTRPCRouter({
       // if (team!.created_by_google_id !== currentUser) {
       //   throw new Error("You are not the owner of this team");
       // }
+
+      const teamRequest = await ctx.db.teamRequest.delete({
+        where: {
+          fromUserGoogleId_toUserGoogleId_teamId: {
+            fromUserGoogleId: currentUser,
+            toUserGoogleId: input.memberId,
+            teamId: input.teamId,
+          },
+        },
+      });
 
       const userTeam = await ctx.db.userTeam.delete({
         where: {

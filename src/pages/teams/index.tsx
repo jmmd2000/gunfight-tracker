@@ -15,11 +15,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScaleLoader } from "react-spinners";
+import { PuffLoader } from "react-spinners";
 import Link from "next/link";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useToastEffect } from "~/hooks/useToastEffect";
+import { set } from "zod";
+import { useRouter } from "next/router";
 
 export default function TeamsPage() {
-  const { data, isLoading, isError } =
+  const { data, isLoading, isError, refetch } =
     api.team.getAllWithMember.useQuery(undefined);
 
   // console.log(data);
@@ -27,23 +32,41 @@ export default function TeamsPage() {
     <div>
       <h1 className="p-8 text-2xl font-semibold text-gray-300">Teams</h1>
       <div>
-        {isLoading && <div>Loading...</div>}
-        {isError && <div>Failed to load teams</div>}
-        {data && <TeamGrid teams={data} />}
+        {/* {isLoading && <div>Loading...</div>}
+        {isError && <div>Failed to load teams</div>} */}
+        {data && <TeamGrid teams={data} refetchTeams={refetch} />}
       </div>
+      <ToastContainer
+        toastStyle={{
+          // same as bg-gray-700 bg-opacity-10
+          background: "rgba(55, 65, 81, 0.1)",
+          color: "#D2D2D3",
+          borderRadius: "0.375rem",
+          backdropFilter: "blur(16px)",
+          border: "1px solid #3f3f46",
+        }}
+        progressStyle={{
+          borderRadius: "0.375rem",
+        }}
+        position="top-right"
+      />
     </div>
   );
 }
 
-const TeamCard = (props: { team?: Team; new_button: boolean }) => {
-  const { team, new_button } = props;
+const TeamCard = (props: {
+  team?: Team;
+  new_button: boolean;
+  refetchTeams?: () => void;
+}) => {
+  const { team, new_button, refetchTeams } = props;
   console.log(new_button, team);
   return (
     <>
       {!!new_button && (
         <div className="flex h-64 w-56 flex-col items-center justify-center rounded-md border border-dashed border-zinc-700 bg-opacity-40 bg-clip-padding shadow-lg backdrop-blur-xl backdrop-filter transition-all hover:cursor-pointer hover:border-solid hover:shadow-xl">
           <h1 className="text-2xl font-semibold text-gray-300">Create Team</h1>
-          <NewTeamDialog />
+          <NewTeamDialog refetchTeams={refetchTeams} />
         </div>
       )}
       {team && (
@@ -79,27 +102,29 @@ const TeamCard = (props: { team?: Team; new_button: boolean }) => {
   );
 };
 
-const TeamGrid = (props: { teams: Team[] }) => {
+const TeamGrid = (props: { teams: Team[]; refetchTeams: () => void }) => {
   return (
     <div className="mx-8 grid grid-cols-5 gap-4">
       {props.teams.map((team) => (
         <TeamCard team={team} new_button={false} key={team.id} />
       ))}
-      <TeamCard new_button={true} />
+      <TeamCard new_button={true} refetchTeams={props.refetchTeams} />
     </div>
   );
 };
 
-const NewTeamDialog = () => {
+const NewTeamDialog = (props: { refetchTeams?: () => void }) => {
   const [newTeamName, setNewTeamName] = useState("");
   // const [teamNameAvailable, setTeamNameAvailable] = useState(false);
+  const [createdTeam, setCreatedTeam] = useState(false);
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { data, isLoading, isError, refetch } = api.team.checkName.useQuery(
-    newTeamName,
-    {
-      enabled: false,
-    },
-  );
+  const router = useRouter();
+
+  const { data, isError, refetch } = api.team.checkName.useQuery(newTeamName, {
+    enabled: false,
+  });
 
   const { mutate: createTeam } = api.team.create.useMutation();
 
@@ -108,25 +133,44 @@ const NewTeamDialog = () => {
   };
 
   const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
+    setCreatingTeam(true);
     e.preventDefault();
-    createTeam({ name: newTeamName });
+    createTeam(
+      { name: newTeamName },
+      {
+        onSuccess: (data) => {
+          // toast.success(`Team ${data!.name} created!`);
+          setCreatedTeam(true);
+          setCreatingTeam(false);
+          setDialogOpen(false);
+          props.refetchTeams!();
+        },
+        onError: (error) => {
+          toast.error(error.message);
+          setCreatedTeam(false);
+          setCreatingTeam(false);
+        },
+      },
+    );
   };
 
+  // This checks if the team name is available
   useEffect(() => {
-    // console.log(newTeamName);
-    // console.log(data);
-    async function checkName() {
+    if (newTeamName.length === 0 || newTeamName === "New Team") return;
+    const checkName = async () => {
       await refetch();
-    }
-
-    if (
-      newTeamName.length > 0 &&
-      newTeamName !== "" &&
-      newTeamName !== "New Team"
-    ) {
-      void checkName();
-    }
+    };
+    void checkName();
   }, [newTeamName, refetch]);
+
+  useToastEffect(
+    creatingTeam,
+    createdTeam,
+    !!isError,
+    "creating-team",
+    "Creating team...",
+    "Team created!",
+  );
 
   return (
     <Dialog>
@@ -146,9 +190,9 @@ const NewTeamDialog = () => {
             <Input id="name" className="col-span-3" onBlur={handleChange} />
           </div>
           <div className="flex w-full flex-col items-center justify-center">
-            {data !== undefined && isLoading && (
+            {/* {data !== undefined && creatingTeam && (
               <ScaleLoader color="#2563eb" height={25} />
-            )}
+            )} */}
             {data !== undefined &&
               !data.name_available &&
               newTeamName !== "" && (
@@ -175,10 +219,12 @@ const NewTeamDialog = () => {
           <Button
             // type="submit"
             variant="secondary"
-            disabled={isLoading || !data?.name_available}
+            disabled={creatingTeam || !data?.name_available}
             onClick={handleSubmit}
           >
-            Create
+            {!!creatingTeam && <PuffLoader size={20} />}
+
+            {!creatingTeam && "Create"}
           </Button>
         </DialogFooter>
       </DialogContent>

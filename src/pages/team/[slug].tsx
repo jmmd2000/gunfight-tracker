@@ -25,12 +25,12 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { useState, useEffect, ReactNode } from "react";
-import { ScaleLoader } from "react-spinners";
+import { PuffLoader, ScaleLoader } from "react-spinners";
 import { Match, type Team, type User } from "~/types";
 import { api } from "~/utils/api";
 import { useUser } from "@clerk/nextjs";
 import * as z from "zod";
-import { FieldError, useForm } from "react-hook-form";
+import { FieldError, set, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Form,
@@ -50,6 +50,9 @@ import {
 } from "@/components/ui/select";
 import { calculateRatio } from "~/server/api/routers/match";
 import { Switch } from "@/components/ui/switch";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useToastEffect } from "~/hooks/useToastEffect";
 
 export default function TeamDetailPage() {
   const router = useRouter();
@@ -63,7 +66,18 @@ export default function TeamDetailPage() {
 
   const userTeams = team?.members;
   const users = userTeams?.map((ut) => ut.user) as unknown as User[];
-  const userID = user.user?.id;
+  // const userID = user.user!.id;
+  let userID = "";
+  if (user.user) {
+    userID = user.user.id;
+  }
+
+  let matches: Match[] = [];
+
+  //take team?.matches and reverse the order
+  if (team?.matches) {
+    matches = team?.matches.reverse();
+  }
 
   return (
     <div>
@@ -78,14 +92,28 @@ export default function TeamDetailPage() {
             </div>
           )} */}
           <StatTable team={team} userID={userID} />
-          <NewMatchDialog teamID={team.id} users={users}>
-            <Button size="sm" className=" bg-blue-700">
-              <PlusSquare />
-            </Button>
-          </NewMatchDialog>
+          {team.members.length !== 2 &&
+            userID === team.created_by_google_id && (
+              <div className="m-8 flex justify-center">
+                <div className="flex items-center justify-center gap-4">
+                  <h1 className="text-xl font-semibold text-gray-300">
+                    Need a full team to add matches...
+                  </h1>
+                </div>
+              </div>
+            )}
+          {team.members.length === 2 &&
+            (userID === team.created_by_google_id ||
+              team.allowJoinerToAddMatches) && (
+              <NewMatchDialog teamID={team.id} users={users}>
+                <Button size="sm" className=" bg-blue-700">
+                  <PlusSquare />
+                </Button>
+              </NewMatchDialog>
+            )}
           {team?.matches !== undefined && (
             <div className="m-8 flex flex-col gap-3">
-              {team?.matches.map((match) => (
+              {matches.map((match) => (
                 <MatchCard match={match} users={users} key={match.id} />
               ))}
             </div>
@@ -93,6 +121,20 @@ export default function TeamDetailPage() {
         </div>
       )}
       {!team && <div>Error fetching team</div>}
+      <ToastContainer
+        toastStyle={{
+          // same as bg-gray-700 bg-opacity-10
+          background: "rgba(55, 65, 81, 0.1)",
+          color: "#D2D2D3",
+          borderRadius: "0.375rem",
+          backdropFilter: "blur(16px)",
+          border: "1px solid #3f3f46",
+        }}
+        progressStyle={{
+          borderRadius: "0.375rem",
+        }}
+        position="top-right"
+      />
     </div>
   );
 }
@@ -157,6 +199,12 @@ const TeamSettingsDialog = (props: {
 }) => {
   const [friendcode, setFriendcode] = useState("");
   const [newTeamName, setNewTeamName] = useState("");
+  const [memberRemoving, setMemberRemoving] = useState(false);
+  const [memberRemoved, setMemberRemoved] = useState(false);
+  const [teamDeleting, setTeamDeleting] = useState(false);
+  const [teamDeleted, setTeamDeleted] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const router = useRouter();
 
   const { data, isLoading, isError, refetch } =
     api.user.getByFriendcode.useQuery(friendcode, {
@@ -175,6 +223,17 @@ const TeamSettingsDialog = (props: {
   const { mutate: createTeamRequest } = api.teamrequest.create.useMutation();
   const { mutate: updateJoinerPermission } =
     api.team.updateJoinerPermission.useMutation();
+  const {
+    mutate: removeMember,
+    isLoading: removingMember,
+    error: cantRemoveMember,
+  } = api.userteam.delete.useMutation();
+  const { mutate: updateTeamName } = api.team.updateName.useMutation();
+  const {
+    mutate: deleteTeam,
+    isLoading: deletingTeam,
+    error: cantDeleteTeam,
+  } = api.team.delete.useMutation();
 
   const handleFriendcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFriendcode(e.target.value);
@@ -184,26 +243,103 @@ const TeamSettingsDialog = (props: {
     setNewTeamName(e.target.value);
   };
 
+  const handleDeleteTeam = () => {
+    if (confirm("Are you sure you want to delete this team?")) {
+      setTeamDeleting(true);
+      deleteTeam(props.team.id, {
+        onSuccess: () => {
+          setTeamDeleting(false);
+          setTeamDeleted(true);
+          setDialogOpen(false);
+          // void router.push("/teams");
+        },
+        onError: (error) => {
+          setTeamDeleting(false);
+          setTeamDeleted(false);
+          setDialogOpen(false);
+          toast.error("Error deleting team.", {
+            progressStyle: {
+              backgroundColor: "#DC2626",
+            },
+          });
+        },
+      });
+    }
+  };
+
   const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (data && props.team.id) {
-      createTeamRequest({
-        toUserGoogleID: data.google_id,
-        teamID: props.team.id,
-      });
+      createTeamRequest(
+        {
+          toUserGoogleID: data.google_id,
+          teamID: props.team.id,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Team request sent!");
+          },
+          onError: (error) => {
+            console.log("error", error);
+            toast.error("Error sending team request.", {
+              progressStyle: {
+                backgroundColor: "#DC2626",
+              },
+            });
+          },
+        },
+      );
+    }
+  };
+
+  const handleUpdateTeamName = () => {
+    if (props.team.id) {
+      updateTeamName(
+        {
+          teamId: props.team.id,
+          newName: newTeamName,
+        },
+        {
+          onSuccess: () => {
+            void router.push(`/team/${newTeamName}`);
+            toast.success("Team name updated!");
+          },
+          onError: (error) => {
+            console.log("error", error);
+            toast.error("Error updating name.", {
+              progressStyle: {
+                backgroundColor: "#DC2626",
+              },
+            });
+          },
+        },
+      );
     }
   };
 
   const handleUpdateJoinerPermission = (checked: boolean) => {
     if (props.team.id) {
-      updateJoinerPermission({
-        teamId: props.team.id,
-        allowJoinerToAddMatches: checked,
-      });
+      updateJoinerPermission(
+        {
+          teamId: props.team.id,
+          allowJoinerToAddMatches: checked,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Member permissions updated!");
+          },
+          onError: (error) => {
+            console.log("error", error);
+            toast.error("Error updating member permissions.", {
+              progressStyle: {
+                backgroundColor: "#DC2626",
+              },
+            });
+          },
+        },
+      );
     }
   };
-
-  // const handleDeleteTeam = () => {};
 
   const handleRemovePlayer = () => {
     if (
@@ -211,46 +347,69 @@ const TeamSettingsDialog = (props: {
         "Are you sure you want to remove this team member?\nThis will remove all matches in this team that they participated in.",
       )
     ) {
-      // deleteMatch(editMatch.id);
-      //   , {
-      //   onSuccess: () => {
-      //     // Handle success
-      //   },
-      //   onError: (error) => {
-      //     // Handle error
-      //   },
-      // });
+      removeMember(
+        {
+          teamId: props.team.id,
+          memberId: props.team.members[1]!.user.google_id,
+        },
+        {
+          onError: (error) => {
+            console.log("error", error);
+            toast.error("Error removing team member.", {
+              progressStyle: {
+                backgroundColor: "#DC2626",
+              },
+            });
+          },
+        },
+      );
     }
   };
 
+  // Manages toast for deleting team and removing member
+
+  useEffect(() => {
+    console.log("teamDeleting", teamDeleting);
+  }, [teamDeleting]);
+
+  useToastEffect(
+    teamDeleting,
+    teamDeleted,
+    !!cantDeleteTeam,
+    "deleting-team",
+    "Deleting team...",
+    "Team deleted!",
+  );
+
+  useToastEffect(
+    removingMember,
+    memberRemoved,
+    !!cantRemoveMember,
+    "removing-member",
+    "Removing team member...",
+    "Team member removed!",
+  );
+
   // This checks if a user with the given friendcode exists
   useEffect(() => {
-    async function checkFriendcode() {
+    if (friendcode.length === 0) return;
+    const checkFriendcode = async () => {
       await refetch();
-    }
-
-    if (friendcode.length > 0 && friendcode !== "") {
-      void checkFriendcode();
-    }
+    };
+    void checkFriendcode();
   }, [friendcode, refetch]);
 
   // This checks if the team name is available
   useEffect(() => {
-    async function checkName() {
+    if (newTeamName.length === 0 || newTeamName === "New Team") return;
+    const checkName = async () => {
       await checkTeamName();
-    }
-
-    if (
-      newTeamName.length > 0 &&
-      newTeamName !== "" &&
-      newTeamName !== "New Team"
-    ) {
-      void checkName();
-    }
+    };
+    void checkName();
   }, [newTeamName, checkTeamName]);
 
   return (
-    <Dialog>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
         {/* <Button size="sm"> */}
         <div className=" text-zinc-500 transition-colors hover:cursor-pointer hover:text-zinc-200">
@@ -300,7 +459,7 @@ const TeamSettingsDialog = (props: {
             <Button
               variant="secondary"
               disabled={checkingTeamName || !teamNameAvailable?.name_available}
-              onClick={handleSubmit}
+              onClick={handleUpdateTeamName}
             >
               Update name
             </Button>
@@ -322,7 +481,9 @@ const TeamSettingsDialog = (props: {
               className="flex h-[42px] w-[10%] items-center justify-center rounded-md bg-red-500 text-zinc-50 transition-all hover:bg-red-700"
               onClick={handleRemovePlayer}
             >
-              <Trash2 size={20} />
+              {!!memberRemoving && <PuffLoader size={20} />}
+
+              {!memberRemoving && <Trash2 size={20} />}
             </button>
           </div>
         )}
@@ -380,8 +541,9 @@ const TeamSettingsDialog = (props: {
               </DialogDescription>
             </div>
             <Switch
-            // checked={props.joinerPermission}
-            // onCheckedChange={handleUpdateJoinerPermission}
+              // checked={props.joinerPermission}
+              onCheckedChange={handleUpdateJoinerPermission}
+              defaultChecked={props.joinerPermission}
             />
           </div>
         </div>
@@ -395,8 +557,11 @@ const TeamSettingsDialog = (props: {
             <Button
               variant="destructive"
               className="border-2 border-transparent hover:border-red-700 hover:bg-transparent"
+              onClick={handleDeleteTeam}
             >
-              Delete
+              {!!teamDeleting && <PuffLoader size={20} />}
+
+              {!teamDeleting && "Delete Team"}
             </Button>
           </div>
         </div>
@@ -429,15 +594,24 @@ const NewMatchDialog = (props: {
   children: ReactNode;
 }) => {
   const { teamID, users, children, editMatch } = props;
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <Dialog>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add new match</DialogTitle>
         </DialogHeader>
-        <MatchForm users={users} teamID={teamID} editMatch={editMatch} />
+        <MatchForm
+          users={users}
+          teamID={teamID}
+          editMatch={editMatch}
+          openToggle={{
+            open: dialogOpen,
+            setOpen: setDialogOpen,
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -525,8 +699,9 @@ function MatchForm(props: {
   teamID: number;
   editMatch?: Match;
   users: User[];
+  openToggle: { open: boolean; setOpen: (open: boolean) => void };
 }) {
-  const { teamID, editMatch, users } = props;
+  const { teamID, editMatch, users, openToggle } = props;
 
   console.log("editMatch", editMatch);
 
@@ -554,56 +729,93 @@ function MatchForm(props: {
     if (editMatch) {
       const result = values.rounds_won > values.rounds_lost ? "win" : "loss";
       console.log("values", values);
-      updateMatch({
-        matchId: editMatch.id,
-        mapId: values.mapId,
-        rounds_won: values.rounds_won,
-        rounds_lost: values.rounds_lost,
-        memberOneKills: values.memberOneKills,
-        memberOneDeaths: values.memberOneDeaths,
-        memberTwoKills: values.memberTwoKills,
-        memberTwoDeaths: values.memberTwoDeaths,
-        result: result,
-        teamId: teamID,
-        memberOneGoogleId: users[0]!.google_id,
-        memberTwoGoogleId: users[1]!.google_id,
-      });
+      updateMatch(
+        {
+          matchId: editMatch.id,
+          mapId: values.mapId,
+          rounds_won: values.rounds_won,
+          rounds_lost: values.rounds_lost,
+          memberOneKills: values.memberOneKills,
+          memberOneDeaths: values.memberOneDeaths,
+          memberTwoKills: values.memberTwoKills,
+          memberTwoDeaths: values.memberTwoDeaths,
+          result: result,
+          teamId: teamID,
+          memberOneGoogleId: users[0]!.google_id,
+          memberTwoGoogleId: users[1]!.google_id,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Match updated!");
+            openToggle.setOpen(false);
+          },
+          onError: (error) => {
+            console.log("error", error);
+            toast.error("Error updating match.", {
+              progressStyle: {
+                backgroundColor: "#DC2626",
+              },
+            });
+          },
+        },
+      );
     } else {
       const result = values.rounds_won > values.rounds_lost ? "win" : "loss";
       console.log("values", values);
-      createMatch({
-        mapId: values.mapId,
-        rounds_won: values.rounds_won,
-        rounds_lost: values.rounds_lost,
-        memberOneKills: values.memberOneKills,
-        memberOneDeaths: values.memberOneDeaths,
-        memberTwoKills: values.memberTwoKills,
-        memberTwoDeaths: values.memberTwoDeaths,
-        result: result,
-        teamId: teamID,
-        memberOneGoogleId: users[0]!.google_id,
-        memberTwoGoogleId: users[1]!.google_id,
-      });
+      createMatch(
+        {
+          mapId: values.mapId,
+          rounds_won: values.rounds_won,
+          rounds_lost: values.rounds_lost,
+          memberOneKills: values.memberOneKills,
+          memberOneDeaths: values.memberOneDeaths,
+          memberTwoKills: values.memberTwoKills,
+          memberTwoDeaths: values.memberTwoDeaths,
+          result: result,
+          teamId: teamID,
+          memberOneGoogleId: users[0]!.google_id,
+          memberTwoGoogleId: users[1]!.google_id,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Match added!");
+            openToggle.setOpen(false);
+          },
+          onError: (error) => {
+            console.log("error", error);
+            toast.error("Error adding match.", {
+              progressStyle: {
+                backgroundColor: "#DC2626",
+              },
+            });
+          },
+        },
+      );
     }
   }
 
   const handleDelete = () => {
     if (editMatch && confirm("Are you sure you want to delete this match?")) {
-      deleteMatch(editMatch.id);
-      //   , {
-      //   onSuccess: () => {
-      //     // Handle success
-      //   },
-      //   onError: (error) => {
-      //     // Handle error
-      //   },
-      // });
+      deleteMatch(editMatch.id, {
+        onSuccess: () => {
+          toast.success("Match deleted!");
+          openToggle.setOpen(false);
+        },
+        onError: (error) => {
+          console.log("error", error);
+          toast.error("Error deleting match.", {
+            progressStyle: {
+              backgroundColor: "#DC2626",
+            },
+          });
+        },
+      });
     }
   };
 
-  // This is a hacky workaround to get the error message to display
-  // Zod dynamically adds the field error to the formState.errors object
-  // Typescript doesn't understand, so we ignore the error
+  //? This is a hacky workaround to get the error message to display
+  //? Zod dynamically adds the field error to the formState.errors object
+  //? Typescript doesn't understand, so we ignore the error
   // @ts-ignore
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const roundSumError = form.formState.errors.rounds_sum;

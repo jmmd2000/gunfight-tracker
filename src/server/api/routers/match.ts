@@ -237,8 +237,8 @@ export const matchesRouter = createTRPCRouter({
       );
 
       // Update matches won and lost based on result
-      let memberOneMatchesWon = team!.matches_won ?? 0;
-      let memberOneMatchesLost = team!.matches_lost ?? 0;
+      let memberOneMatchesWon = memberOne!.matches_won ?? 0;
+      let memberOneMatchesLost = memberOne!.matches_lost ?? 0;
       if (input.result === "win") {
         memberOneMatchesWon += 1;
       } else if (input.result === "loss") {
@@ -264,8 +264,8 @@ export const matchesRouter = createTRPCRouter({
       );
 
       // Update matches won and lost based on result
-      let memberTwoMatchesWon = team!.matches_won ?? 0;
-      let memberTwoMatchesLost = team!.matches_lost ?? 0;
+      let memberTwoMatchesWon = memberTwo!.matches_won ?? 0;
+      let memberTwoMatchesLost = memberTwo!.matches_lost ?? 0;
       if (input.result === "win") {
         memberTwoMatchesWon += 1;
       } else if (input.result === "loss") {
@@ -389,6 +389,8 @@ export const matchesRouter = createTRPCRouter({
         ctx,
       );
 
+      console.log("updatedM1", updatedM1);
+
       //* If member two kills or deaths changed
       const updatedM2 = await updateFromMember(
         input.memberOneGoogleId,
@@ -399,6 +401,8 @@ export const matchesRouter = createTRPCRouter({
         oldMatch!.memberTwoDeaths,
         ctx,
       );
+
+      console.log("updatedM2", updatedM2);
 
       //* If total team kills or deaths changed
       await updateTeamKills(
@@ -889,6 +893,72 @@ async function updateFromResultChange(
             ) / 100
           : team.matches_won;
 
+      let m1WL_10 = 0;
+      let m2WL_10 = 0;
+      let teamWL_10 = 0;
+
+      const memberOneMatches = await ctx.db.match.findMany({
+        where: {
+          memberOneGoogleId: memberOne.google_id,
+        },
+      });
+
+      const memberTwoMatches = await ctx.db.match.findMany({
+        where: {
+          memberTwoGoogleId: memberTwo.google_id,
+        },
+      });
+
+      if (team.matches) {
+        if (team.matches.length >= 10) {
+          const last_ten_matches = team.matches.slice(-10);
+          let wins = 0;
+          let losses = 0;
+
+          for (const match of last_ten_matches) {
+            if (match.result === "win") {
+              wins++;
+            } else {
+              losses++;
+            }
+          }
+
+          teamWL_10 = calculateRatio(wins, losses);
+        }
+      }
+
+      if (memberOneMatches.length >= 10) {
+        const last_ten_matches = memberOneMatches.slice(-10);
+        let wins = 0;
+        let losses = 0;
+
+        for (const match of last_ten_matches) {
+          if (match.result === "win") {
+            wins++;
+          } else {
+            losses++;
+          }
+        }
+
+        m1WL_10 = calculateRatio(wins, losses);
+      }
+
+      if (memberTwoMatches.length >= 10) {
+        const last_ten_matches = memberTwoMatches.slice(-10);
+        let wins = 0;
+        let losses = 0;
+
+        for (const match of last_ten_matches) {
+          if (match.result === "win") {
+            wins++;
+          } else {
+            losses++;
+          }
+        }
+
+        m2WL_10 = calculateRatio(wins, losses);
+      }
+
       const newMemberOneWL =
         memberOne.matches_lost >= 0
           ? Math.round(
@@ -918,6 +988,7 @@ async function updateFromResultChange(
             increment: 1,
           },
           wl: newTeamWL,
+          wl_10: teamWL_10,
         },
       });
 
@@ -934,6 +1005,7 @@ async function updateFromResultChange(
             increment: 1,
           },
           wl: newMemberOneWL,
+          wl_10: m1WL_10,
         },
       });
       // Update member two
@@ -949,6 +1021,7 @@ async function updateFromResultChange(
             increment: 1,
           },
           wl: newMemberTwoWL,
+          wl_10: m2WL_10,
         },
       });
     }
@@ -967,9 +1040,9 @@ async function updateFromMember(
     currentUser: string | null;
   },
 ) {
-  const oldKd = member.kd ?? 0;
-  const oldTotalKills = member.kills ?? 0;
-  const oldTotalDeaths = member.deaths ?? 0;
+  const oldKd = member.kd;
+  const oldTotalKills = member.kills;
+  const oldTotalDeaths = member.deaths;
 
   if (newKills !== oldKills || newDeaths !== oldDeaths) {
     const newTotalKills = oldTotalKills - oldKills + newKills;

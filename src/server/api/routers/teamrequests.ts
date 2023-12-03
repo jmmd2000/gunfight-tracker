@@ -75,19 +75,6 @@ export const teamrequestsRouter = createTRPCRouter({
       //     },
       //   },
       // });
-      console.log(input);
-      const request = await ctx.db.teamRequest.update({
-        where: {
-          fromUserGoogleId_toUserGoogleId_teamId: {
-            fromUserGoogleId: input.fromUserGoogleId,
-            toUserGoogleId: currentUser,
-            teamId: input.teamID,
-          },
-        },
-        data: {
-          status: "accepted",
-        },
-      });
 
       const userTeams = await ctx.db.userTeam.findMany({
         where: {
@@ -97,16 +84,29 @@ export const teamrequestsRouter = createTRPCRouter({
 
       if (userTeams.length > 2) {
         throw new Error("Team is full");
+      } else {
+        const request = await ctx.db.teamRequest.update({
+          where: {
+            fromUserGoogleId_toUserGoogleId_teamId: {
+              fromUserGoogleId: input.fromUserGoogleId,
+              toUserGoogleId: currentUser,
+              teamId: input.teamID,
+            },
+          },
+          data: {
+            status: "accepted",
+          },
+        });
+
+        const userTeam = await ctx.db.userTeam.create({
+          data: {
+            user_google_Id: currentUser,
+            teamId: input.teamID,
+          },
+        });
+
+        return request;
       }
-
-      const userTeam = await ctx.db.userTeam.create({
-        data: {
-          user_google_Id: currentUser,
-          teamId: input.teamID,
-        },
-      });
-
-      return request;
     }),
   decline: privateProcedure
     .input(
