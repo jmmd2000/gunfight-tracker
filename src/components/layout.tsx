@@ -8,6 +8,7 @@ import { api } from "~/utils/api";
 import { Menu, X, Bell, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
+import { PuffLoader, ScaleLoader } from "react-spinners";
 import {
   Sheet,
   SheetContent,
@@ -17,12 +18,30 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { TeamRequest } from "~/types";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useToastEffect } from "~/hooks/useToastEffect";
+import { set } from "zod";
 
 export const Layout = (props: PropsWithChildren) => {
   return (
     <>
       <Navbar />
       <main>{props.children}</main>
+      <ToastContainer
+        toastStyle={{
+          // same as bg-gray-700 bg-opacity-10
+          background: "rgba(55, 65, 81, 0.1)",
+          color: "#D2D2D3",
+          borderRadius: "0.375rem",
+          backdropFilter: "blur(16px)",
+          border: "1px solid #3f3f46",
+        }}
+        progressStyle={{
+          borderRadius: "0.375rem",
+        }}
+        position="top-right"
+      />
     </>
   );
 };
@@ -136,7 +155,7 @@ const Navbar = () => {
 };
 
 const RequestSidebar = () => {
-  const { data, isLoading, isError } =
+  const { data, isLoading, isError, refetch } =
     api.teamrequest.getAllWithMember.useQuery();
   return (
     <Sheet>
@@ -151,10 +170,18 @@ const RequestSidebar = () => {
           <SheetDescription>
             When people send you team requests, they'll show up here.
           </SheetDescription>
+          <SheetDescription>
+            By accepting a request, you give permission for the creator of the
+            team to add data that will modify your stats.
+          </SheetDescription>
         </SheetHeader>
         <div className="mt-8 flex flex-col gap-4">
           {data?.map((teamrequest) => (
-            <TeamRequestCard key={teamrequest.id} teamrequest={teamrequest} />
+            <TeamRequestCard
+              key={teamrequest.id}
+              teamrequest={teamrequest}
+              refetch={refetch}
+            />
           ))}
         </div>
       </SheetContent>
@@ -162,16 +189,65 @@ const RequestSidebar = () => {
   );
 };
 
-const TeamRequestCard = (props: { teamrequest: TeamRequest }) => {
-  const { teamrequest } = props;
+export const TeamRequestCard = (props: {
+  teamrequest: TeamRequest;
+  revokeable?: boolean;
+  refetch?: () => void;
+}) => {
+  const { teamrequest, revokeable = false, refetch } = props;
   const router = useRouter();
-  // const { data, isLoading, isError } = api.team.getByID.useQuery(
-  //   teamrequest.teamID,
-  // );
 
-  console.log(teamrequest);
-  const { mutate: acceptTeamRequest } = api.teamrequest.accept.useMutation();
-  const { mutate: declineTeamRequest } = api.teamrequest.decline.useMutation();
+  const [requestAccepted, setRequestAccepted] = useState(false);
+  const [requestDeclined, setRequestDeclined] = useState(false);
+  const [requestRevoked, setRequestRevoked] = useState(false);
+
+  const {
+    mutate: acceptTeamRequest,
+    isLoading: acceptingRequest,
+    error: cantAcceptRequest,
+  } = api.teamrequest.accept.useMutation();
+  const {
+    mutate: declineTeamRequest,
+    isLoading: decliningRequest,
+    error: cantDeclineRequest,
+  } = api.teamrequest.decline.useMutation();
+
+  const {
+    mutate: revokeTeamRequest,
+    isLoading: revokingRequest,
+    error: cantRevokeRequest,
+  } = api.teamrequest.revoke.useMutation();
+
+  useToastEffect(
+    acceptingRequest,
+    requestAccepted,
+    !!cantAcceptRequest,
+    "accepting-request",
+    "Accepting request...",
+    "Team request accepted!",
+    "Couldn't accept request.",
+  );
+
+  useToastEffect(
+    decliningRequest,
+    requestDeclined,
+    !!cantDeclineRequest,
+    "declining-request",
+    "Declining request...",
+    "Team request declined.",
+    "Couldn't decline request.",
+  );
+
+  useToastEffect(
+    revokingRequest,
+    requestRevoked,
+    !!cantRevokeRequest,
+    "revoking-request",
+    "Revoking request...",
+    "Team request revoked.",
+    "Couldn't revoke request.",
+  );
+
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-700 bg-opacity-10 bg-clip-padding p-4 shadow-lg backdrop-blur-lg backdrop-filter">
       <div className="flex flex-col items-start">
@@ -183,36 +259,131 @@ const TeamRequestCard = (props: { teamrequest: TeamRequest }) => {
           {teamrequest.team.members[0]?.user.username}
         </p>
       </div>
-      {teamrequest.status === "pending" && (
+      {teamrequest.status === "pending" && !revokeable && (
         <div className="flex gap-2">
           <Button
             size="sm"
             className="bg-green-500 hover:bg-green-600"
             onClick={() => {
-              console.log(teamrequest);
-              acceptTeamRequest({
-                teamID: teamrequest.teamId,
-                fromUserGoogleId: teamrequest.fromUserGoogleId,
-              });
-              // router.push(`/team/${data?.name}`);
+              acceptTeamRequest(
+                {
+                  teamID: teamrequest.teamId,
+                  fromUserGoogleId: teamrequest.fromUserGoogleId,
+                },
+                {
+                  onSuccess: () => {
+                    setRequestAccepted(true);
+                    if (refetch) {
+                      refetch();
+                    }
+                  },
+                },
+              );
             }}
+            disabled={decliningRequest || acceptingRequest}
           >
-            <Check />
+            {acceptingRequest ? <PuffLoader size={20} /> : <Check />}
           </Button>
           <Button
             size="sm"
             className="bg-red-500 hover:bg-red-600"
             onClick={() => {
-              declineTeamRequest({
-                teamID: teamrequest.teamId,
-                fromUserGoogleId: teamrequest.fromUserGoogleId,
-              });
-              // router.push(`/team/${data?.name}`);
+              declineTeamRequest(
+                {
+                  teamID: teamrequest.teamId,
+                  fromUserGoogleId: teamrequest.fromUserGoogleId,
+                },
+                {
+                  onSuccess: () => {
+                    setRequestDeclined(true);
+                    if (refetch) {
+                      refetch();
+                    }
+                  },
+                },
+              );
             }}
+            disabled={decliningRequest || acceptingRequest}
           >
-            <X />
+            {decliningRequest ? <PuffLoader size={20} /> : <X />}
           </Button>
         </div>
+      )}
+      {teamrequest.status === "pending" && !!revokeable && (
+        <>
+          <p className="text-zinc-600">Pending...</p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                revokeTeamRequest(
+                  {
+                    teamId: teamrequest.teamId,
+                    memberId: teamrequest.toUserGoogleId,
+                  },
+                  {
+                    onSuccess: () => {
+                      setRequestRevoked(true);
+                      if (refetch) {
+                        refetch();
+                      }
+                    },
+                    onError: () => {
+                      setRequestRevoked(false);
+                    },
+                  },
+                );
+              }}
+              disabled={revokingRequest}
+            >
+              {revokingRequest ? <PuffLoader size={20} /> : "Revoke"}
+            </Button>
+          </div>
+        </>
+      )}
+      {teamrequest.status === "rejected" && !!revokeable && (
+        <>
+          <p className="text-red-600">Rejected</p>
+          <div className="flex gap-2">
+            {requestRevoked ? (
+              <p>Revoked: {requestRevoked}</p>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  revokeTeamRequest(
+                    {
+                      teamId: teamrequest.teamId,
+                      memberId: teamrequest.toUserGoogleId,
+                    },
+                    {
+                      onSuccess: () => {
+                        setRequestRevoked(true);
+                        if (refetch) {
+                          refetch();
+                        }
+                      },
+                      onError: () => {
+                        setRequestRevoked(false);
+                      },
+                    },
+                  );
+                }}
+                disabled={revokingRequest}
+              >
+                {revokingRequest ? <PuffLoader size={20} /> : "Revoke"}
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+      {teamrequest.status === "accepted" && (
+        <p className="text-green-600">Accepted</p>
+      )}
+      {teamrequest.status === "rejected" && !revokeable && (
+        <p className="text-red-600">Rejected</p>
       )}
     </div>
   );

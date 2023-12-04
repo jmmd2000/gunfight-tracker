@@ -50,6 +50,7 @@ export const userteamsRouter = createTRPCRouter({
         name_available: true,
       };
     }),
+
   delete: privateProcedure
     .input(
       z.object({

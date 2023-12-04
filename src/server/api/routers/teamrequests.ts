@@ -6,6 +6,7 @@ import {
   privateProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { Input } from "postcss";
 
 export const teamrequestsRouter = createTRPCRouter({
   create: privateProcedure
@@ -56,6 +57,32 @@ export const teamrequestsRouter = createTRPCRouter({
 
     return requests as unknown as TeamRequest[];
   }),
+  getAllWithTeam: privateProcedure
+    .input(z.number())
+    .query(async ({ input, ctx }) => {
+      const currentUser = ctx.currentUser;
+
+      const requests = await ctx.db.teamRequest.findMany({
+        where: {
+          teamId: input,
+        },
+        include: {
+          team: {
+            include: {
+              members: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // console.log(requests);
+
+      return requests as unknown as TeamRequest[];
+    }),
   accept: privateProcedure
     .input(
       z.object({
@@ -132,6 +159,28 @@ export const teamrequestsRouter = createTRPCRouter({
       });
 
       return request;
+    }),
+  revoke: privateProcedure
+    .input(
+      z.object({
+        teamId: z.number(),
+        memberId: z.string(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const currentUser = ctx.currentUser;
+
+      const teamRequest = await ctx.db.teamRequest.delete({
+        where: {
+          fromUserGoogleId_toUserGoogleId_teamId: {
+            fromUserGoogleId: currentUser,
+            toUserGoogleId: input.memberId,
+            teamId: input.teamId,
+          },
+        },
+      });
+
+      return teamRequest;
     }),
   delete: privateProcedure
     .input(

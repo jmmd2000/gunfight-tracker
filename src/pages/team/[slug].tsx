@@ -50,9 +50,10 @@ import {
 } from "@/components/ui/select";
 import { calculateRatio } from "~/server/api/routers/match";
 import { Switch } from "@/components/ui/switch";
-import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useToastEffect } from "~/hooks/useToastEffect";
+import { TeamRequestCard } from "~/components/layout";
+import { toast } from "react-toastify";
 
 export default function TeamDetailPage() {
   const router = useRouter();
@@ -79,8 +80,71 @@ export default function TeamDetailPage() {
     matches = team?.matches.reverse();
   }
 
+  // const [loading, setLoading] = useState(false);
+  // const [error, setError] = useState(false);
+  // const [success, setSuccess] = useState(false);
+
+  // const handleLoading = () => {
+  //   setLoading(!loading);
+  // };
+
+  // const handleSuccess = () => {
+  //   setSuccess(!success);
+  // };
+
+  // const handleError = () => {
+  //   setError(!error);
+  // };
+
+  // useEffect(() => {
+  //   console.log({ loading, success, error });
+  //   if (loading) {
+  //     toast.loading("loading...", {
+  //       toastId: "test",
+  //       closeOnClick: true,
+  //     });
+  //   } else if (success) {
+  //     toast.update("test", {
+  //       render: "success",
+  //       type: "success",
+  //       isLoading: false,
+  //       autoClose: 2000,
+  //       closeOnClick: true,
+  //     });
+  //   } else if (error && !loading && !success) {
+  //     toast.update("test", {
+  //       render: "error",
+  //       type: "error",
+  //       isLoading: false,
+  //       autoClose: 2000,
+  //       closeOnClick: true,
+  //     });
+  //   }
+  // }, [error, success, loading]);
+
+  // useToastEffect(
+  //   loading,
+  //   success,
+  //   error,
+  //   "test",
+  //   "Loading...",
+  //   "Success!",
+  //   "Error!",
+  // );
+
   return (
     <div>
+      {/* <div className="flex items-center justify-center gap-4">
+        <Button variant="secondary" className="mt-4" onClick={handleLoading}>
+          loading = {loading.toString()}
+        </Button>
+        <Button variant="secondary" className="mt-4" onClick={handleSuccess}>
+          success = {success.toString()}
+        </Button>
+        <Button variant="destructive" className="mt-4" onClick={handleError}>
+          error = {error.toString()}
+        </Button>
+      </div> */}
       {team && (
         <div>
           {/* {user.user?.id === team?.created_by_google_id && (
@@ -120,21 +184,6 @@ export default function TeamDetailPage() {
           )}
         </div>
       )}
-      {!team && <div>Error fetching team</div>}
-      <ToastContainer
-        toastStyle={{
-          // same as bg-gray-700 bg-opacity-10
-          background: "rgba(55, 65, 81, 0.1)",
-          color: "#D2D2D3",
-          borderRadius: "0.375rem",
-          backdropFilter: "blur(16px)",
-          border: "1px solid #3f3f46",
-        }}
-        progressStyle={{
-          borderRadius: "0.375rem",
-        }}
-        position="top-right"
-      />
     </div>
   );
 }
@@ -203,6 +252,8 @@ const TeamSettingsDialog = (props: {
   const [memberRemoved, setMemberRemoved] = useState(false);
   const [teamDeleting, setTeamDeleting] = useState(false);
   const [teamDeleted, setTeamDeleted] = useState(false);
+  // const [requestSending, setRequestSending] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
 
@@ -220,15 +271,23 @@ const TeamSettingsDialog = (props: {
     enabled: false,
   });
 
-  const { mutate: createTeamRequest } = api.teamrequest.create.useMutation();
+  const {
+    mutate: createTeamRequest,
+    isLoading: sendingTeamRequest,
+    error: cantSendTeamRequest,
+  } = api.teamrequest.create.useMutation();
+
   const { mutate: updateJoinerPermission } =
     api.team.updateJoinerPermission.useMutation();
+
   const {
     mutate: removeMember,
     isLoading: removingMember,
     error: cantRemoveMember,
   } = api.userteam.delete.useMutation();
+
   const { mutate: updateTeamName } = api.team.updateName.useMutation();
+
   const {
     mutate: deleteTeam,
     isLoading: deletingTeam,
@@ -251,17 +310,18 @@ const TeamSettingsDialog = (props: {
           setTeamDeleting(false);
           setTeamDeleted(true);
           setDialogOpen(false);
+          void router.reload();
           // void router.push("/teams");
         },
         onError: (error) => {
           setTeamDeleting(false);
           setTeamDeleted(false);
           setDialogOpen(false);
-          toast.error("Error deleting team.", {
-            progressStyle: {
-              backgroundColor: "#DC2626",
-            },
-          });
+          // toast.error("Error deleting team.", {
+          //   progressStyle: {
+          //     backgroundColor: "#DC2626",
+          //   },
+          // });
         },
       });
     }
@@ -277,15 +337,12 @@ const TeamSettingsDialog = (props: {
         },
         {
           onSuccess: () => {
-            toast.success("Team request sent!");
+            // setRequestSending(false);
+            setRequestSent(true);
           },
           onError: (error) => {
-            console.log("error", error);
-            toast.error("Error sending team request.", {
-              progressStyle: {
-                backgroundColor: "#DC2626",
-              },
-            });
+            // setRequestSending(false);
+            setRequestSent(false);
           },
         },
       );
@@ -353,13 +410,15 @@ const TeamSettingsDialog = (props: {
           memberId: props.team.members[1]!.user.google_id,
         },
         {
+          onSuccess: () => {
+            // toast.success("Team member removed!");
+            // void router.reload();
+            setMemberRemoved(true);
+            setMemberRemoving(false);
+          },
           onError: (error) => {
-            console.log("error", error);
-            toast.error("Error removing team member.", {
-              progressStyle: {
-                backgroundColor: "#DC2626",
-              },
-            });
+            setMemberRemoved(false);
+            setMemberRemoving(false);
           },
         },
       );
@@ -368,10 +427,6 @@ const TeamSettingsDialog = (props: {
 
   // Manages toast for deleting team and removing member
 
-  useEffect(() => {
-    console.log("teamDeleting", teamDeleting);
-  }, [teamDeleting]);
-
   useToastEffect(
     teamDeleting,
     teamDeleted,
@@ -379,6 +434,7 @@ const TeamSettingsDialog = (props: {
     "deleting-team",
     "Deleting team...",
     "Team deleted!",
+    "Couldn't delete team.",
   );
 
   useToastEffect(
@@ -388,6 +444,17 @@ const TeamSettingsDialog = (props: {
     "removing-member",
     "Removing team member...",
     "Team member removed!",
+    "Couldn't remove team member.",
+  );
+
+  useToastEffect(
+    sendingTeamRequest,
+    requestSent,
+    !!cantSendTeamRequest,
+    "sending-team-request",
+    "Sending team invite...",
+    "Team invite sent!",
+    "Couldn't send invite.",
   );
 
   // This checks if a user with the given friendcode exists
@@ -490,7 +557,10 @@ const TeamSettingsDialog = (props: {
         {props.team.members.length === 1 && (
           <div className="grid gap-2 py-4">
             <div className="grid w-full max-w-sm items-center gap-1.5">
-              <Label htmlFor="friendcode">Add team member</Label>
+              <div className="flex items-center gap-4">
+                <Label htmlFor="friendcode">Add team member</Label>
+                <TeamInvitesDialog teamId={props.team.id} />
+              </div>
               <Input
                 id="friendcode"
                 className="col-span-3"
@@ -565,6 +635,52 @@ const TeamSettingsDialog = (props: {
             </Button>
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const TeamInvitesDialog = (props: { teamId: number }) => {
+  const {
+    data: requests,
+    isLoading,
+    isError,
+    refetch,
+  } = api.teamrequest.getAllWithTeam.useQuery(props.teamId);
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild onClick={() => refetch()}>
+        <div className=" text-zinc-500 transition-colors hover:cursor-pointer">
+          <p className="text-xs hover:text-zinc-400">View sent invites</p>
+        </div>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="mb-4">Sent team invites</DialogTitle>
+          {isLoading && (
+            <div className="flex justify-center">
+              <PuffLoader color="#d4d4d8" />
+            </div>
+          )}
+          {requests?.length === 0 && (
+            <DialogDescription className="text-sm">
+              No invites sent.
+            </DialogDescription>
+          )}
+          {requests?.length !== 0 && (
+            <div className="mt-8 flex flex-col gap-2">
+              {requests?.map((request) => (
+                <TeamRequestCard
+                  key={request.id}
+                  teamrequest={request}
+                  revokeable
+                  refetch={refetch}
+                />
+              ))}
+            </div>
+          )}
+        </DialogHeader>
       </DialogContent>
     </Dialog>
   );

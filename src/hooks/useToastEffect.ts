@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { toast } from "react-toastify";
 
-//- TODO: modify this to include error states
 export const useToastEffect = (
   isLoading: boolean,
   success: boolean,
@@ -9,19 +8,13 @@ export const useToastEffect = (
   toastId: string,
   loadingMessage: string,
   successMessage: string,
+  errorMessage: string,
 ) => {
   useEffect(() => {
-    console.log("effect run", {
-      isLoading,
-      success,
-      cannotDoAction,
-      toastId,
-      loadingMessage,
-      successMessage,
-    });
-
     if (isLoading) {
-      toast.loading(loadingMessage, { toastId });
+      toast.loading(loadingMessage, {
+        toastId,
+      });
     } else if (success) {
       toast.update(toastId, {
         render: successMessage,
@@ -29,13 +22,13 @@ export const useToastEffect = (
         isLoading: false,
         autoClose: 2000,
       });
+    } else if (cannotDoAction && !isLoading && !success) {
+      toast.update(toastId, {
+        render: errorMessage,
+        type: "error",
+        isLoading: false,
+        autoClose: 2000,
+      });
     }
-  }, [
-    isLoading,
-    cannotDoAction,
-    loadingMessage,
-    toastId,
-    successMessage,
-    success,
-  ]);
+  }, [isLoading, cannotDoAction, success]);
 };

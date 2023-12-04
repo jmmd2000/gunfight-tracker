@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PuffLoader } from "react-spinners";
 import Link from "next/link";
-import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useToastEffect } from "~/hooks/useToastEffect";
 import { set } from "zod";
@@ -36,20 +35,6 @@ export default function TeamsPage() {
         {isError && <div>Failed to load teams</div>} */}
         {data && <TeamGrid teams={data} refetchTeams={refetch} />}
       </div>
-      <ToastContainer
-        toastStyle={{
-          // same as bg-gray-700 bg-opacity-10
-          background: "rgba(55, 65, 81, 0.1)",
-          color: "#D2D2D3",
-          borderRadius: "0.375rem",
-          backdropFilter: "blur(16px)",
-          border: "1px solid #3f3f46",
-        }}
-        progressStyle={{
-          borderRadius: "0.375rem",
-        }}
-        position="top-right"
-      />
     </div>
   );
 }
@@ -117,7 +102,7 @@ const NewTeamDialog = (props: { refetchTeams?: () => void }) => {
   const [newTeamName, setNewTeamName] = useState("");
   // const [teamNameAvailable, setTeamNameAvailable] = useState(false);
   const [createdTeam, setCreatedTeam] = useState(false);
-  const [creatingTeam, setCreatingTeam] = useState(false);
+  // const [creatingTeam, setCreatingTeam] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const router = useRouter();
@@ -126,14 +111,18 @@ const NewTeamDialog = (props: { refetchTeams?: () => void }) => {
     enabled: false,
   });
 
-  const { mutate: createTeam } = api.team.create.useMutation();
+  const {
+    mutate: createTeam,
+    isLoading: creatingTeam,
+    isError: cantCreateTeam,
+  } = api.team.create.useMutation();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewTeamName(e.target.value);
   };
 
   const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
-    setCreatingTeam(true);
+    // setCreatingTeam(true);
     e.preventDefault();
     createTeam(
       { name: newTeamName },
@@ -141,14 +130,14 @@ const NewTeamDialog = (props: { refetchTeams?: () => void }) => {
         onSuccess: (data) => {
           // toast.success(`Team ${data!.name} created!`);
           setCreatedTeam(true);
-          setCreatingTeam(false);
+          // setCreatingTeam(false);
           setDialogOpen(false);
           props.refetchTeams!();
         },
         onError: (error) => {
-          toast.error(error.message);
+          // toast.error(error.message);
           setCreatedTeam(false);
-          setCreatingTeam(false);
+          // setCreatingTeam(false);
         },
       },
     );
@@ -166,10 +155,11 @@ const NewTeamDialog = (props: { refetchTeams?: () => void }) => {
   useToastEffect(
     creatingTeam,
     createdTeam,
-    !!isError,
+    !!cantCreateTeam,
     "creating-team",
     "Creating team...",
     "Team created!",
+    "Error creating team.",
   );
 
   return (
