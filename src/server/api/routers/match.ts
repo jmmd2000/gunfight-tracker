@@ -8,6 +8,7 @@ import {
 } from "~/server/api/trpc";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { DefaultArgs } from "@prisma/client/runtime/library";
+import { calculateRatio } from "~/helpers/calculateRatio";
 
 export const matchesRouter = createTRPCRouter({
   create: privateProcedure
@@ -1209,12 +1210,6 @@ async function updateTeamKills(
       },
     });
   }
-}
-
-export function calculateRatio(wins_kills: number, losses_deaths: number) {
-  return losses_deaths > 0
-    ? Math.round((wins_kills / losses_deaths) * 100) / 100
-    : wins_kills;
 }
 
 // async function updateTeamKills(

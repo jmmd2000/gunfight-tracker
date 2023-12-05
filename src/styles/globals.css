@@ -2,9 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
+/* @layer base {
   body {
     @apply h-screen w-screen bg-gradient-to-tl bg-cover bg-no-repeat;
     @apply from-zinc-900 via-zinc-900 to-zinc-950;
+  }
+} */
+
+@layer base {
+  html,
+  body {
+    @apply min-h-screen w-full bg-gradient-to-tl from-zinc-900 via-zinc-900 to-zinc-950 bg-cover bg-no-repeat;
   }
 }

@@ -4,38 +4,27 @@
 import { Button } from "@/components/ui/button";
 import {
   DialogHeader,
-  DialogFooter,
   Dialog,
   DialogTrigger,
   DialogContent,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { UserTeam } from "@prisma/client";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  UserRoundCog,
-  Pencil,
-  Trash2,
-  CheckCircle2,
-  Settings,
-  XCircle,
-  PlusSquare,
-} from "lucide-react";
+import { Pencil, Trash2, CheckCircle2, Settings, XCircle } from "lucide-react";
 import { useRouter } from "next/router";
-import { useState, useEffect, ReactNode } from "react";
-import { PuffLoader, ScaleLoader } from "react-spinners";
-import { Match, type Team, type User } from "~/types";
+import { useState, useEffect, type ReactNode } from "react";
+import { PuffLoader } from "react-spinners";
+import { type Match, type Team, type User } from "~/types";
 import { api } from "~/utils/api";
 import { useUser } from "@clerk/nextjs";
 import * as z from "zod";
-import { FieldError, set, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -48,7 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { calculateRatio } from "~/server/api/routers/match";
+import { calculateRatio } from "~/helpers/calculateRatio";
 import { Switch } from "@/components/ui/switch";
 import "react-toastify/dist/ReactToastify.css";
 import { useToastEffect } from "~/hooks/useToastEffect";
@@ -61,8 +50,8 @@ export default function TeamDetailPage() {
   const teamName = router.query.slug;
   const {
     data: team,
-    isLoading,
-    isSuccess,
+    // isLoading,
+    // isSuccess,
   } = api.team.getByName.useQuery(teamName as string);
 
   const userTeams = team?.members;
@@ -80,103 +69,73 @@ export default function TeamDetailPage() {
     matches = team?.matches.reverse();
   }
 
-  // const [loading, setLoading] = useState(false);
-  // const [error, setError] = useState(false);
-  // const [success, setSuccess] = useState(false);
-
-  // const handleLoading = () => {
-  //   setLoading(!loading);
-  // };
-
-  // const handleSuccess = () => {
-  //   setSuccess(!success);
-  // };
-
-  // const handleError = () => {
-  //   setError(!error);
-  // };
-
   // useEffect(() => {
-  //   console.log({ loading, success, error });
-  //   if (loading) {
-  //     toast.loading("loading...", {
-  //       toastId: "test",
-  //       closeOnClick: true,
-  //     });
-  //   } else if (success) {
-  //     toast.update("test", {
-  //       render: "success",
-  //       type: "success",
-  //       isLoading: false,
-  //       autoClose: 2000,
-  //       closeOnClick: true,
-  //     });
-  //   } else if (error && !loading && !success) {
-  //     toast.update("test", {
-  //       render: "error",
-  //       type: "error",
-  //       isLoading: false,
-  //       autoClose: 2000,
-  //       closeOnClick: true,
-  //     });
+  //   if (
+  //     user.user.id !== team?.created_by_google_id &&
+  //     user.user.id !== team?.members[1]?.user.google_id
+  //   ) {
+  //     if (!toast.isActive("not-member")) {
+  //       toast.info("You are not a member of this team.", {
+  //         autoClose: false,
+  //         closeOnClick: true,
+  //         position: "bottom-center",
+  //         style: {
+  //           width: "max-content",
+  //           background: "rgba(55, 65, 81, 0.1)",
+  //           color: "#D2D2D3",
+  //           borderRadius: "0.375rem",
+  //           backdropFilter: "blur(16px)",
+  //           border: "1px solid #3f3f46",
+  //         },
+  //         toastId: "not-member",
+  //       });
+  //     }
   //   }
-  // }, [error, success, loading]);
-
-  // useToastEffect(
-  //   loading,
-  //   success,
-  //   error,
-  //   "test",
-  //   "Loading...",
-  //   "Success!",
-  //   "Error!",
-  // );
+  // }, []);
 
   return (
     <div>
-      {/* <div className="flex items-center justify-center gap-4">
-        <Button variant="secondary" className="mt-4" onClick={handleLoading}>
-          loading = {loading.toString()}
-        </Button>
-        <Button variant="secondary" className="mt-4" onClick={handleSuccess}>
-          success = {success.toString()}
-        </Button>
-        <Button variant="destructive" className="mt-4" onClick={handleError}>
-          error = {error.toString()}
-        </Button>
-      </div> */}
+      {/* {userID !== team?.created_by_google_id &&
+        userID !== team?.members[1]?.user.google_id && (
+          <p className="flex justify-center p-4 text-zinc-500">
+            You are not a member of this team.
+          </p>
+        )} */}
       {team && (
         <div>
-          {/* {user.user?.id === team?.created_by_google_id && (
-            <div>
-              <TeamSettingsDialog
-                team={team}
-                joinerPermission={team?.allowJoinerToAddMatches}
-              />
-            </div>
-          )} */}
           <StatTable team={team} userID={userID} />
           {team.members.length !== 2 &&
             userID === team.created_by_google_id && (
               <div className="m-8 flex justify-center">
                 <div className="flex items-center justify-center gap-4">
                   <h1 className="text-xl font-semibold text-gray-300">
-                    Need a full team to add matches...
+                    You need a full team to add matches.
                   </h1>
                 </div>
               </div>
             )}
-          {team.members.length === 2 &&
-            (userID === team.created_by_google_id ||
-              team.allowJoinerToAddMatches) && (
-              <NewMatchDialog teamID={team.id} users={users}>
-                <Button size="sm" className=" bg-blue-700">
-                  <PlusSquare />
-                </Button>
-              </NewMatchDialog>
-            )}
+
           {team?.matches !== undefined && (
-            <div className="m-8 flex flex-col gap-3">
+            <div className="flex flex-col gap-1 md:mx-8">
+              <h1 className="ml-4 mt-4 text-xl font-semibold text-gray-300">
+                Matches
+              </h1>
+
+              {team.members.length === 2 &&
+                (userID === team.created_by_google_id ||
+                  team.allowJoinerToAddMatches) && (
+                  <div className="mt-2 flex justify-center">
+                    <NewMatchDialog teamID={team.id} users={users}>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="border border-zinc-700 hover:bg-zinc-200 hover:text-zinc-900"
+                      >
+                        Add new match
+                      </Button>
+                    </NewMatchDialog>
+                  </div>
+                )}
               {matches.map((match) => (
                 <MatchCard match={match} users={users} key={match.id} />
               ))}
@@ -190,6 +149,11 @@ export default function TeamDetailPage() {
 
 const StatTable = (props: { team: Team; userID: string }) => {
   const { team, userID } = props;
+  const bestPlayer =
+    calculateRatio(team.memberOneTotalKills, team.memberOneTotalDeaths) >
+    calculateRatio(team.memberTwoTotalKills, team.memberTwoTotalDeaths)
+      ? team.members[0]?.user
+      : team.members[1]?.user;
   return (
     <>
       {team && (
@@ -206,29 +170,65 @@ const StatTable = (props: { team: Team; userID: string }) => {
             )}
           </div>
 
-          <div className="mx-8 my-4 grid grid-cols-11 grid-rows-2 border border-zinc-900 bg-zinc-800 bg-opacity-10 bg-clip-padding p-2 text-center text-zinc-200 shadow-lg backdrop-blur-lg backdrop-filter">
-            <p className="text-xs text-zinc-400">W/L</p>
-            <p className="text-xs text-zinc-400">W/L Last 10</p>
-            <p className="text-xs text-zinc-400">Played</p>
-            <p className="text-xs text-zinc-400">Won</p>
-            <p className="text-xs text-zinc-400">Lost</p>
-            <p className="text-xs text-zinc-400">K/D</p>
-            <p className="text-xs text-zinc-400">K/D Last 10</p>
-            <p className="text-xs text-zinc-400">Kills</p>
-            <p className="text-xs text-zinc-400">Deaths</p>
-            <p className="text-xs text-zinc-400">rounds won</p>
-            <p className="text-xs text-zinc-400">rounds lost</p>
-            <p>{team.wl}</p>
-            <p>{team.wl_10}</p>
-            <p>{team.matches_won + team.matches_lost}</p>
-            <p>{team.matches_won}</p>
-            <p>{team.matches_lost}</p>
-            <p>{team.kd}</p>
-            <p>{team.kd_10}</p>
-            <p>{team.total_kills}</p>
-            <p>{team.total_deaths}</p>
-            <p>{team.rounds_won}</p>
-            <p>{team.rounds_lost}</p>
+          <div className="mx-8 my-4 grid grid-cols-2 border border-zinc-900 bg-zinc-800 bg-opacity-10 bg-clip-padding p-2 text-center text-zinc-200 shadow-lg backdrop-blur-lg backdrop-filter sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 ">
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">Played</p>
+              <p>{team.matches_won + team.matches_lost}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">Won</p>
+              <p>{team.matches_won}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">Lost</p>
+              <p>{team.matches_lost}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">Kills</p>
+              <p>{team.total_kills}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">Deaths</p>
+              <p>{team.total_deaths}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">W/L</p>
+              <p>{team.wl}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">
+                W/L Last 10
+              </p>
+              <p>{team.wl_10}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">K/D</p>
+              <p>{team.kd}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">
+                K/D Last 10
+              </p>
+              <p>{team.kd_10}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">
+                Rounds won
+              </p>
+              <p>{team.rounds_won}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">
+                Rounds lost
+              </p>
+              <p>{team.rounds_lost}</p>
+            </div>
+            <div>
+              <p className="bg-zinc-900 p-1 text-xs text-zinc-400">
+                Best player
+              </p>
+              <p className="text-[14px]">{bestPlayer?.username}</p>
+            </div>
           </div>
         </div>
       )}
@@ -257,15 +257,19 @@ const TeamSettingsDialog = (props: {
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
 
-  const { data, isLoading, isError, refetch } =
-    api.user.getByFriendcode.useQuery(friendcode, {
-      enabled: false,
-    });
+  const {
+    data,
+    isLoading,
+    //  isError,
+    refetch,
+  } = api.user.getByFriendcode.useQuery(friendcode, {
+    enabled: false,
+  });
 
   const {
     data: teamNameAvailable,
     isLoading: checkingTeamName,
-    isError: errorCheckingName,
+    // isError: errorCheckingName,
     refetch: checkTeamName,
   } = api.team.checkName.useQuery(newTeamName, {
     enabled: false,
@@ -307,14 +311,11 @@ const TeamSettingsDialog = (props: {
       setTeamDeleting(true);
       deleteTeam(props.team.id, {
         onSuccess: () => {
-          setTeamDeleting(false);
           setTeamDeleted(true);
           setDialogOpen(false);
-          void router.reload();
-          // void router.push("/teams");
+          void router.push("/teams");
         },
-        onError: (error) => {
-          setTeamDeleting(false);
+        onError: () => {
           setTeamDeleted(false);
           setDialogOpen(false);
           // toast.error("Error deleting team.", {
@@ -340,7 +341,7 @@ const TeamSettingsDialog = (props: {
             // setRequestSending(false);
             setRequestSent(true);
           },
-          onError: (error) => {
+          onError: () => {
             // setRequestSending(false);
             setRequestSent(false);
           },
@@ -359,7 +360,7 @@ const TeamSettingsDialog = (props: {
         {
           onSuccess: () => {
             void router.push(`/team/${newTeamName}`);
-            toast.success("Team name updated!");
+            toast.success("Team name updated!", {});
           },
           onError: (error) => {
             console.log("error", error);
@@ -383,7 +384,7 @@ const TeamSettingsDialog = (props: {
         },
         {
           onSuccess: () => {
-            toast.success("Member permissions updated!");
+            toast.success("Member permissions updated!", {});
           },
           onError: (error) => {
             console.log("error", error);
@@ -416,7 +417,7 @@ const TeamSettingsDialog = (props: {
             setMemberRemoved(true);
             setMemberRemoving(false);
           },
-          onError: (error) => {
+          onError: () => {
             setMemberRemoved(false);
             setMemberRemoving(false);
           },
@@ -428,7 +429,7 @@ const TeamSettingsDialog = (props: {
   // Manages toast for deleting team and removing member
 
   useToastEffect(
-    teamDeleting,
+    deletingTeam,
     teamDeleted,
     !!cantDeleteTeam,
     "deleting-team",
@@ -644,7 +645,7 @@ const TeamInvitesDialog = (props: { teamId: number }) => {
   const {
     data: requests,
     isLoading,
-    isError,
+    // isError,
     refetch,
   } = api.teamrequest.getAllWithTeam.useQuery(props.teamId);
 
@@ -822,7 +823,11 @@ function MatchForm(props: {
   console.log("editMatch", editMatch);
 
   // const users = team.members.map((ut) => ut.user) as unknown as User[];
-  const { data: maps, isLoading, isError } = api.map.getAll.useQuery();
+  const {
+    data: maps,
+    // isLoading,
+    // isError
+  } = api.map.getAll.useQuery();
   const { mutate: createMatch } = api.match.create.useMutation();
   const { mutate: updateMatch } = api.match.update.useMutation();
   const { mutate: deleteMatch } = api.match.delete.useMutation();
@@ -862,7 +867,7 @@ function MatchForm(props: {
         },
         {
           onSuccess: () => {
-            toast.success("Match updated!");
+            toast.success("Match updated!", { containerId: "main" });
             openToggle.setOpen(false);
           },
           onError: (error) => {
@@ -894,7 +899,7 @@ function MatchForm(props: {
         },
         {
           onSuccess: () => {
-            toast.success("Match added!");
+            toast.success("Match added!", { containerId: "main" });
             openToggle.setOpen(false);
           },
           onError: (error) => {
@@ -914,7 +919,7 @@ function MatchForm(props: {
     if (editMatch && confirm("Are you sure you want to delete this match?")) {
       deleteMatch(editMatch.id, {
         onSuccess: () => {
-          toast.success("Match deleted!");
+          toast.success("Match deleted!", { containerId: "main" });
           openToggle.setOpen(false);
         },
         onError: (error) => {
@@ -1139,6 +1144,8 @@ function MatchForm(props: {
   );
 }
 
+//- TODO: limit matches to 10 and push to a different page to view all matches
+
 export const MatchCard = (props: { match: Match; users: User[] }) => {
   const { match, users } = props;
   // const { data: map, isLoading, isError } = api.map.getByID.useQuery(
@@ -1150,33 +1157,42 @@ export const MatchCard = (props: { match: Match; users: User[] }) => {
 
   return (
     <div
-      className={`flex items-center justify-center gap-4 rounded-md border border-zinc-700 bg-opacity-10 bg-gradient-to-r from-zinc-700/10 from-40% via-zinc-700/10 ${gradientEnd} backdrop-filter" m-2 h-24 overflow-hidden bg-clip-padding p-2 shadow-lg backdrop-blur-lg `}
+      className={`flex items-center justify-center gap-4 rounded-md border border-zinc-700 bg-opacity-10 bg-gradient-to-r from-zinc-700/10 from-40% via-zinc-700/10 ${gradientEnd} backdrop-filter" h-24 overflow-hidden bg-clip-padding p-2 shadow-lg backdrop-blur-lg sm:m-2 `}
     >
       <div className="flex items-start">
         <img
           src={match.map.map_image_url}
           alt={`Image of ${match.map.name}`}
-          className="absolute left-40 top-1/2 z-0 max-w-[350px] -translate-x-1/2 -translate-y-1/2 transform"
+          className="absolute left-40 top-1/2 z-0 hidden max-w-[350px] -translate-x-1/2 -translate-y-1/2 transform lg:block"
         />
-        <div className="w-[350px]"></div>
+        <div className="hidden w-[350px] lg:block"></div>
 
-        <div className="w-[200px]">
-          <h1 className="text-xl font-semibold text-zinc-300">
+        <div className="ml-1 w-[100px] md:ml-4 md:w-[200px] lg:m-0">
+          <h1 className="text-base font-semibold text-zinc-300 lg:text-xl">
             {match.map.name}
           </h1>
-          <p className="z-10 text-sm font-medium text-zinc-500">
-            {new Date(match?.created_at).toLocaleDateString()}
+          <p className="z-10 text-xs font-medium text-zinc-500 lg:text-sm">
+            {new Date(match?.created_at).toLocaleDateString("en-GB", {
+              year: "2-digit",
+              month: "2-digit",
+              day: "2-digit",
+            }) +
+              " - " +
+              new Date(match?.created_at).toLocaleTimeString("en-GB", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
           </p>
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-2 md:gap-4">
         <MatchCardPlayerStats
           username={users[0]?.username}
           kills={match?.memberOneKills}
           deaths={match?.memberOneDeaths}
         />
-        <div className="h-[70px] border border-l-zinc-700"></div>
+        <div className="hidden h-[70px] border border-l-zinc-700 sm:block"></div>
         <MatchCardPlayerStats
           username={users[1]?.username}
           kills={match?.memberTwoKills}
@@ -1184,7 +1200,6 @@ export const MatchCard = (props: { match: Match; users: User[] }) => {
         />
       </div>
 
-      {/* <div className="flex w-[150px] items-center justify-center gap-4"> */}
       <NewMatchDialog teamID={match.teamId} users={users} editMatch={match}>
         <Button
           size="sm"
@@ -1194,16 +1209,11 @@ export const MatchCard = (props: { match: Match; users: User[] }) => {
         </Button>
       </NewMatchDialog>
 
-      {/* <Button size="sm" className="border border-zinc-700 hover:bg-zinc-950">
-          <Trash2 />
-        </Button>
-      </div> */}
-
       <div className="ml-auto flex flex-col items-end">
-        <p className="text-xl font-semibold text-zinc-200">
+        <p className="text-base font-semibold text-zinc-200 md:text-xl">
           {match?.rounds_won} - {match?.rounds_lost}
         </p>
-        <p className="text-sm font-medium text-zinc-300">
+        <p className="text-xs font-medium text-zinc-300 md:text-sm">
           {match?.result === "win" ? "Win" : "Loss"}
         </p>
       </div>
@@ -1218,30 +1228,28 @@ const MatchCardPlayerStats = (props: {
 }) => {
   const { username, kills, deaths } = props;
   return (
-    <div className="flex flex-col items-center justify-evenly gap-4">
-      <p className="text-xs font-semibold text-zinc-400">{username}</p>
-      <div className="grid grid-cols-2">
-        <div className="flex flex-col items-center gap-1">
-          <p className="text-[9px] font-semibold text-zinc-200">Kills</p>
-          <p className="text-lg font-semibold text-zinc-200">{kills}</p>
-        </div>
-        <div className="flex flex-col items-center gap-1">
-          <p className="text-[9px] font-semibold text-zinc-200">Deaths</p>
-          <p className="text-lg font-semibold text-zinc-200">{deaths}</p>
-        </div>
-        {/* <div className="flex flex-col items-center gap-1">
-          <p className="text-[9px] font-semibold text-zinc-200">K/D</p>
-          <p className="text-lg font-semibold text-zinc-200">
-            {Math.round((kills / deaths) * 100) / 100}
-          </p>
-        </div> */}
-      </div>
-      {/* <p className="text-xl font-semibold text-zinc-200">
-        {kills} - {deaths}
+    <div className="flex flex-col items-center justify-evenly gap-1 md:gap-2 lg:gap-4">
+      <p className="text-[9px] font-semibold text-zinc-400 md:text-xs">
+        {username}
       </p>
-      <p className="text-sm font-medium text-zinc-300">
-        {Math.round((kills / deaths) * 100) / 100}
-      </p> */}
+      <div className="grid grid-cols-2">
+        <div className="flex flex-col items-center md:gap-1">
+          <p className="text-[8px] font-semibold text-zinc-200 md:text-[9px]">
+            Kills
+          </p>
+          <p className="text-base font-semibold text-zinc-200 md:text-lg">
+            {kills}
+          </p>
+        </div>
+        <div className="flex flex-col items-center md:gap-1">
+          <p className="text-[8px] font-semibold text-zinc-200 md:text-[9px]">
+            Deaths
+          </p>
+          <p className="text-base font-semibold text-zinc-200 md:text-lg">
+            {deaths}
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

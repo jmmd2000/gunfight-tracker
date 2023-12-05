@@ -6,7 +6,7 @@ import {
   privateProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { calculateRatio } from "./match";
+import { calculateRatio } from "~/helpers/calculateRatio";
 
 export const userteamsRouter = createTRPCRouter({
   // getAll: publicProcedure.query(async ({ ctx }) => {

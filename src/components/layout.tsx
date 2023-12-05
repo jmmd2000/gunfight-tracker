@@ -25,7 +25,7 @@ import { set } from "zod";
 
 export const Layout = (props: PropsWithChildren) => {
   return (
-    <>
+    <div>
       <Navbar />
       <main>{props.children}</main>
       <ToastContainer
@@ -42,7 +42,7 @@ export const Layout = (props: PropsWithChildren) => {
         }}
         position="top-right"
       />
-    </>
+    </div>
   );
 };
 
@@ -51,7 +51,7 @@ const Navbar = () => {
   const user = useUser();
   return (
     <nav
-      className="bg-gray-0 w-full rounded-md bg-opacity-10 bg-clip-padding shadow-lg backdrop-blur-lg backdrop-filter
+      className="bg-gray-0 absolute top-0 z-10 w-full rounded-md bg-opacity-10 bg-clip-padding shadow-lg backdrop-blur-lg backdrop-filter
     "
     >
       <div className="mr-auto px-4">
@@ -102,17 +102,13 @@ const Navbar = () => {
           </div>
           {/* Mobile menu button */}
           <div className="flex items-center md:hidden">
-            <button
-              type="button"
-              className="mobile-menu-button outline-none"
-              onClick={() => setIsOpen(!isOpen)}
-            >
+            <Button type="button" onClick={() => setIsOpen(!isOpen)}>
               {isOpen ? (
                 <X className="h-6 w-6 text-gray-500" />
               ) : (
                 <Menu className="h-6 w-6 text-gray-500" />
               )}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -133,7 +129,8 @@ const Navbar = () => {
             Stats
           </a>
         </Link>
-        <div className="flex w-full items-center justify-center pb-6">
+        <div className="flex w-full items-center justify-center gap-4 pb-6">
+          <RequestSidebar size="sm" />
           {!user.isSignedIn && (
             <SignInButton>
               <Button variant="outline" size="sm">
@@ -154,15 +151,15 @@ const Navbar = () => {
   );
 };
 
-const RequestSidebar = () => {
+const RequestSidebar = (props: { size?: "sm" | null }) => {
   const { data, isLoading, isError, refetch } =
     api.teamrequest.getAllWithMember.useQuery();
   return (
     <Sheet>
       <SheetTrigger>
-        {/* <Button variant="secondary"> */}
-        <Bell />
-        {/* </Button> */}
+        {/* <Button variant="secondary" size={props.size}>
+          <Bell />
+        </Button> */}
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>

@@ -89,7 +89,7 @@ const TeamCard = (props: {
 
 const TeamGrid = (props: { teams: Team[]; refetchTeams: () => void }) => {
   return (
-    <div className="mx-8 grid grid-cols-5 gap-4">
+    <div className="mx-8 grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ">
       {props.teams.map((team) => (
         <TeamCard team={team} new_button={false} key={team.id} />
       ))}

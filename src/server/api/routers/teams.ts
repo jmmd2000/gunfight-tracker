@@ -8,7 +8,7 @@ import {
   privateProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { calculateRatio } from "./match";
+import { calculateRatio } from "~/helpers/calculateRatio";
 
 export const teamsRouter = createTRPCRouter({
   create: privateProcedure
@@ -85,6 +85,9 @@ export const teamsRouter = createTRPCRouter({
           matches: {
             include: {
               map: true,
+            },
+            orderBy: {
+              created_at: "desc",
             },
           },
         },
