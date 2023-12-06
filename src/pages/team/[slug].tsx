@@ -33,6 +33,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -43,6 +44,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { useToastEffect } from "~/hooks/useToastEffect";
 import { TeamRequestCard } from "~/components/layout";
 import { toast } from "react-toastify";
+import { SelectGroup } from "@radix-ui/react-select";
 
 export default function TeamDetailPage() {
   const router = useRouter();
@@ -996,11 +998,58 @@ function MatchForm(props: {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {maps?.map((map) => (
-                      <SelectItem key={map.id} value={map.id.toString()}>
-                        {map.name}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectLabel className="bg-zinc-800 text-zinc-200">
+                        Modern Warfare III
+                      </SelectLabel>
+                      {maps?.map(
+                        (map) =>
+                          map.game_name === "MW3" && (
+                            <SelectItem key={map.id} value={map.id.toString()}>
+                              {map.name}
+                            </SelectItem>
+                          ),
+                      )}
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="bg-zinc-800 text-zinc-200">
+                        Modern Warfare II
+                      </SelectLabel>
+                      {maps?.map(
+                        (map) =>
+                          map.game_name === "MW2" && (
+                            <SelectItem key={map.id} value={map.id.toString()}>
+                              {map.name}
+                            </SelectItem>
+                          ),
+                      )}
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="bg-zinc-800 text-zinc-200">
+                        Modern Warfare 2019
+                      </SelectLabel>
+                      {maps?.map(
+                        (map) =>
+                          map.game_name === "MW19" && (
+                            <SelectItem key={map.id} value={map.id.toString()}>
+                              {map.name}
+                            </SelectItem>
+                          ),
+                      )}
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="bg-zinc-800 text-zinc-200">
+                        Cold War
+                      </SelectLabel>
+                      {maps?.map(
+                        (map) =>
+                          map.game_name === "CW" && (
+                            <SelectItem key={map.id} value={map.id.toString()}>
+                              {map.name}
+                            </SelectItem>
+                          ),
+                      )}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </FormControl>

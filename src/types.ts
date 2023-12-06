@@ -81,6 +81,7 @@ export interface Map {
   matches: Match[];
   best_teams: Team[];
   best_users: User[];
+  game_name: string;
 }
 
 export interface Match {

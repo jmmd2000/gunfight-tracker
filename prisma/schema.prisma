@@ -133,6 +133,7 @@ model Map {
   map_image_url             String
   bestForUsers              User[] @relation("BestMapUsers")
   bestForTeams              Team[] @relation("BestMapTeams")
+  game_name                 String   @default("")
   
   @@index([id])
 }
