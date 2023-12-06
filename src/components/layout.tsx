@@ -49,10 +49,14 @@ export const Layout = (props: PropsWithChildren) => {
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const user = useUser();
+  // check if the current page is the homepage
+  const router = useRouter();
+  const isHomePage = router.pathname === "/";
   return (
     <nav
-      className="bg-gray-0 absolute top-0 z-10 w-full rounded-md bg-opacity-10 bg-clip-padding shadow-lg backdrop-blur-lg backdrop-filter
-    "
+      className={`bg-gray-0 glass ${
+        isHomePage ? "fixed" : "sticky"
+      } left-0 top-0 z-10 w-full`}
     >
       <div className="mr-auto px-4">
         <div className="flex justify-between">
@@ -90,7 +94,7 @@ const Navbar = () => {
           <div className="ml-auto hidden items-center space-x-3 md:flex">
             <RequestSidebar />
             {!user.isSignedIn && (
-              <SignInButton>
+              <SignInButton afterSignInUrl="/" afterSignUpUrl="/">
                 <Button variant="outline">Login</Button>
               </SignInButton>
             )}
@@ -130,20 +134,20 @@ const Navbar = () => {
           </a>
         </Link>
         <div className="flex w-full items-center justify-center gap-4 pb-6">
-          <RequestSidebar size="sm" />
+          <RequestSidebar />
           {!user.isSignedIn && (
-            <SignInButton>
+            <SignInButton afterSignInUrl="/" afterSignUpUrl="/">
               <Button variant="outline" size="sm">
                 Login
               </Button>
             </SignInButton>
           )}
           {!!user.isSignedIn && (
-            <SignInButton>
+            <SignOutButton>
               <Button variant="outline" size="sm">
                 Log Out
               </Button>
-            </SignInButton>
+            </SignOutButton>
           )}
         </div>
       </div>
@@ -151,15 +155,26 @@ const Navbar = () => {
   );
 };
 
-const RequestSidebar = (props: { size?: "sm" | null }) => {
-  const { data, isLoading, isError, refetch } =
-    api.teamrequest.getAllWithMember.useQuery();
+const RequestSidebar = () => {
+  const { data, refetch } = api.teamrequest.getAllWithMember.useQuery(
+    undefined,
+    {
+      enabled: false,
+    },
+  );
+  const user = useUser();
+
+  useEffect(() => {
+    if (user.isSignedIn) {
+      void refetch();
+    }
+  }, [refetch, user.isSignedIn]);
   return (
     <Sheet>
       <SheetTrigger>
-        {/* <Button variant="secondary" size={props.size}>
+        <div className="rounded-md bg-zinc-100 p-2 hover:bg-zinc-200">
           <Bell />
-        </Button> */}
+        </div>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>

@@ -31,6 +31,9 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      backgroundImage: {
+        triangle: "url('~/src/assets/triangle.svg')",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

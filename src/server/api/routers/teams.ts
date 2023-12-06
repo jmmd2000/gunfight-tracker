@@ -1,6 +1,6 @@
 import { type User, type Team } from "~/types";
 import { z } from "zod";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { type Prisma, PrismaClient } from "@prisma/client";
 import { type DefaultArgs } from "@prisma/client/runtime/library";
 
 import {
