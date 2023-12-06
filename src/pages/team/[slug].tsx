@@ -62,12 +62,12 @@ export default function TeamDetailPage() {
     userID = user.user.id;
   }
 
-  let matches: Match[] = [];
+  // let matches: Match[] = [];
 
   //take team?.matches and reverse the order
-  if (team?.matches) {
-    matches = team?.matches.reverse();
-  }
+  // if (team?.matches) {
+  //   matches = team?.matches.reverse();
+  // }
 
   // useEffect(() => {
   //   if (
@@ -136,7 +136,7 @@ export default function TeamDetailPage() {
                     </NewMatchDialog>
                   </div>
                 )}
-              {matches.map((match) => (
+              {team?.matches.map((match) => (
                 <MatchCard match={match} users={users} key={match.id} />
               ))}
             </div>
@@ -363,7 +363,6 @@ const TeamSettingsDialog = (props: {
             toast.success("Team name updated!", {});
           },
           onError: (error) => {
-            console.log("error", error);
             toast.error("Error updating name.", {
               progressStyle: {
                 backgroundColor: "#DC2626",
@@ -387,7 +386,6 @@ const TeamSettingsDialog = (props: {
             toast.success("Member permissions updated!", {});
           },
           onError: (error) => {
-            console.log("error", error);
             toast.error("Error updating member permissions.", {
               progressStyle: {
                 backgroundColor: "#DC2626",
@@ -820,8 +818,6 @@ function MatchForm(props: {
 }) {
   const { teamID, editMatch, users, openToggle } = props;
 
-  console.log("editMatch", editMatch);
-
   // const users = team.members.map((ut) => ut.user) as unknown as User[];
   const {
     data: maps,
@@ -849,7 +845,6 @@ function MatchForm(props: {
   function onSubmit(values: z.infer<typeof MatchFormSchema>) {
     if (editMatch) {
       const result = values.rounds_won > values.rounds_lost ? "win" : "loss";
-      console.log("values", values);
       updateMatch(
         {
           matchId: editMatch.id,
@@ -871,7 +866,6 @@ function MatchForm(props: {
             openToggle.setOpen(false);
           },
           onError: (error) => {
-            console.log("error", error);
             toast.error("Error updating match.", {
               progressStyle: {
                 backgroundColor: "#DC2626",
@@ -882,7 +876,6 @@ function MatchForm(props: {
       );
     } else {
       const result = values.rounds_won > values.rounds_lost ? "win" : "loss";
-      console.log("values", values);
       createMatch(
         {
           mapId: values.mapId,
@@ -903,7 +896,6 @@ function MatchForm(props: {
             openToggle.setOpen(false);
           },
           onError: (error) => {
-            console.log("error", error);
             toast.error("Error adding match.", {
               progressStyle: {
                 backgroundColor: "#DC2626",
@@ -923,7 +915,6 @@ function MatchForm(props: {
           openToggle.setOpen(false);
         },
         onError: (error) => {
-          console.log("error", error);
           toast.error("Error deleting match.", {
             progressStyle: {
               backgroundColor: "#DC2626",

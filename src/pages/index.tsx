@@ -1,5 +1,4 @@
-import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
-import { Button } from "@/components/ui/button";
+import { useUser } from "@clerk/nextjs";
 import { api } from "~/utils/api";
 import { useEffect } from "react";
 
@@ -7,32 +6,43 @@ export default function Home() {
   const user = useUser();
   const {
     mutate: createUser,
-    isLoading: creatingUser,
-    isError: failedCreatingUser,
+    // isLoading: creatingUser,
+    // isError: failedCreatingUser,
   } = api.user.create.useMutation();
 
-  //- TODO: check if user already exists in db
+  const { data } = api.user.getCurrent.useQuery(undefined, {
+    retry: false,
+  });
 
   useEffect(() => {
-    if (user.isSignedIn) {
+    if (user.isSignedIn && data === undefined) {
+      console.log("creating user");
       createUser({
         first_name: user.user.firstName,
         last_name: user.user.lastName,
         avatar_url: user.user.imageUrl,
       });
+    } else {
+      return;
     }
-  }, []);
-
-  //- TODO: figure out a nice svg for the background
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.isSignedIn, data]);
 
   return (
-    <div>
-      <div className="flex h-screen flex-col items-center justify-center gap-2">
-        <h1 className="mb-10 text-6xl font-medium leading-6 tracking-tight text-zinc-200">
+    <div className="bg-triangle h-screen max-w-full bg-center bg-no-repeat">
+      <div className="flex h-screen flex-col items-center justify-center gap-2 ">
+        <h1
+          className="glass
+         mb-10 p-3 text-2xl font-medium leading-6 tracking-tight text-zinc-200 sm:p-4 sm:text-3xl lg:p-8 lg:text-6xl"
+        >
           Welcome to Gunfight Tracker
         </h1>
-        <p className="text-lg text-zinc-400">
-          Record the result of each match you play to gain valuable insights.
+        <p
+          className="glass
+         p-1 text-xs text-zinc-200 sm:p-2 sm:text-sm lg:p-3 lg:text-lg"
+        >
+          Track your <i>Call of Duty Gunfight</i> matches to gain valuable
+          insights.
         </p>
       </div>
     </div>

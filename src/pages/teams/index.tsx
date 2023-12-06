@@ -26,14 +26,13 @@ export default function TeamsPage() {
   const { data, isLoading, isError, refetch } =
     api.team.getAllWithMember.useQuery(undefined);
 
-  // console.log(data);
   return (
     <div>
       <h1 className="p-8 text-2xl font-semibold text-gray-300">Teams</h1>
       <div>
         {/* {isLoading && <div>Loading...</div>}
         {isError && <div>Failed to load teams</div>} */}
-        {data && <TeamGrid teams={data} refetchTeams={refetch} />}
+        {data && <TeamGrid teams={data} refetchTeams={refetch} new_button />}
       </div>
     </div>
   );
@@ -45,7 +44,6 @@ const TeamCard = (props: {
   refetchTeams?: () => void;
 }) => {
   const { team, new_button, refetchTeams } = props;
-  console.log(new_button, team);
   return (
     <>
       {!!new_button && (
@@ -87,13 +85,19 @@ const TeamCard = (props: {
   );
 };
 
-const TeamGrid = (props: { teams: Team[]; refetchTeams: () => void }) => {
+export const TeamGrid = (props: {
+  teams: Team[];
+  new_button?: boolean;
+  refetchTeams: () => void;
+}) => {
   return (
-    <div className="mx-8 grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ">
+    <div className="mx-8 grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ">
       {props.teams.map((team) => (
         <TeamCard team={team} new_button={false} key={team.id} />
       ))}
-      <TeamCard new_button={true} refetchTeams={props.refetchTeams} />
+      {props.new_button && (
+        <TeamCard new_button={true} refetchTeams={props.refetchTeams} />
+      )}
     </div>
   );
 };
