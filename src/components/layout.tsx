@@ -22,6 +22,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useToastEffect } from "~/hooks/useToastEffect";
 import { set } from "zod";
+import { Analytics } from "@vercel/analytics/react";
 
 export const Layout = (props: PropsWithChildren) => {
   return (
@@ -42,6 +43,7 @@ export const Layout = (props: PropsWithChildren) => {
         }}
         position="top-right"
       />
+      <Analytics />
     </div>
   );
 };
