@@ -5,6 +5,7 @@ import { createTRPCRouter } from "~/server/api/trpc";
 import { teamrequestsRouter } from "~/server/api/routers/teamrequests";
 import { matchesRouter } from "~/server/api/routers/match";
 import { mapRouter } from "~/server/api/routers/map";
+import { mapStatsRouter } from "~/server/api/routers/mapstats";
 
 /**
  * This is the primary router for your server.
@@ -18,6 +19,7 @@ export const appRouter = createTRPCRouter({
   teamrequest: teamrequestsRouter,
   match: matchesRouter,
   map: mapRouter,
+  mapStats: mapStatsRouter,
 });
 
 // export type definition of API

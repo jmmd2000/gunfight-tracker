@@ -101,3 +101,22 @@ export interface Match {
   memberTwoKills: number;
   memberTwoDeaths: number;
 }
+
+export interface MapStats {
+  id: number;
+  mapId: number;
+  userId?: string;
+  teamId?: number;
+  map: Map;
+  user?: User;
+  team?: Team;
+  matchesPlayed: number;
+  matchesWon: number;
+  matchesLost: number;
+  roundsWon: number;
+  roundsLost: number;
+  kills: number;
+  deaths: number;
+  kd: number;
+  wl: number;
+}

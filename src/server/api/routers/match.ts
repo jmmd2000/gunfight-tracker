@@ -1,4 +1,4 @@
-import { Match, User, type Team } from "~/types";
+import { Match, User, type Team, type MapStats } from "~/types";
 import { z } from "zod";
 
 import {
@@ -9,6 +9,7 @@ import {
 import { Prisma, PrismaClient } from "@prisma/client";
 import { DefaultArgs } from "@prisma/client/runtime/library";
 import { calculateRatio } from "~/helpers/calculateRatio";
+import { currentUser } from "@clerk/nextjs";
 
 export const matchesRouter = createTRPCRouter({
   create: privateProcedure
@@ -28,8 +29,6 @@ export const matchesRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      console.log("create", input);
-
       //* Create new match
       const match = await ctx.db.match.create({
         data: {
@@ -46,6 +45,34 @@ export const matchesRouter = createTRPCRouter({
           memberTwoDeaths: input.memberTwoDeaths,
         },
       });
+
+      // Track the stats for the team and members for the specific maps
+      await modifyMapStats(
+        match as Match,
+        input.mapId,
+        "create",
+        ctx,
+        undefined,
+        input.teamId,
+      );
+      await modifyMapStats(
+        match as Match,
+        input.mapId,
+        "create",
+        ctx,
+        undefined,
+        undefined,
+        input.memberOneGoogleId,
+      );
+      await modifyMapStats(
+        match as Match,
+        input.mapId,
+        "create",
+        ctx,
+        undefined,
+        undefined,
+        input.memberTwoGoogleId,
+      );
 
       //* Get team
       const team = await ctx.db.team.findUnique({
@@ -367,8 +394,6 @@ export const matchesRouter = createTRPCRouter({
         },
       });
 
-      //- TODO: implement updating total rounds won/lost
-
       //* If result changed
       await updateFromResultChange(
         oldMatch!.result,
@@ -443,6 +468,34 @@ export const matchesRouter = createTRPCRouter({
           memberTwoDeaths: input.memberTwoDeaths,
         },
       });
+
+      // Track the stats for the team and members for the specific maps
+      await modifyMapStats(
+        updatedMatch as Match,
+        input.mapId,
+        "update",
+        ctx,
+        oldMatch as Match,
+        input.teamId,
+      );
+      await modifyMapStats(
+        updatedMatch as Match,
+        input.mapId,
+        "update",
+        ctx,
+        oldMatch as Match,
+        undefined,
+        input.memberOneGoogleId,
+      );
+      await modifyMapStats(
+        updatedMatch as Match,
+        input.mapId,
+        "update",
+        ctx,
+        oldMatch as Match,
+        undefined,
+        input.memberTwoGoogleId,
+      );
 
       return updatedMatch;
     }),
@@ -671,6 +724,14 @@ export const matchesRouter = createTRPCRouter({
       }
 
       //* Update member one and two with new stats
+      console.log(
+        memberOne!.rounds_lost,
+        memberTwo!.rounds_lost,
+        team!.rounds_lost,
+        match!.rounds_lost,
+      );
+      //! Figure out the rounds won/rounds lost discrepancy
+      //! maybe console log all win and loss values
       const updatedMemberOne = await ctx.db.user.update({
         where: {
           google_id: match!.memberOneGoogleId,
@@ -708,6 +769,98 @@ export const matchesRouter = createTRPCRouter({
           rounds_lost: memberTwo!.rounds_lost - match!.rounds_lost,
         },
       });
+
+      // Track the stats for the team and members for the specific maps
+      // await modifyMapStats(
+      //   match as Match,
+      //   match!.mapId,
+      //   "delete",
+      //   ctx,
+      //   undefined,
+      //   match!.teamId,
+      // );
+      // await modifyMapStats(
+      //   match as Match,
+      //   match!.mapId,
+      //   "delete",
+      //   ctx,
+      //   undefined,
+      //   undefined,
+      //   match!.memberOneGoogleId,
+      // );
+      // await modifyMapStats(
+      //   match as Match,
+      //   match!.mapId,
+      //   "delete",
+      //   ctx,
+      //   undefined,
+      //   undefined,
+      //   match!.memberTwoGoogleId,
+      // );
+
+      // if (team?.matches.length === 1) {
+      //   await modifyMapStats(
+      //     match as Match,
+      //     match!.mapId,
+      //     "delete",
+      //     ctx,
+      //     undefined,
+      //     match!.teamId,
+      //   );
+      // } else {
+      //   await modifyMapStats(
+      //     match as Match,
+      //     match!.mapId,
+      //     "update",
+      //     ctx,
+      //     undefined,
+      //     match!.teamId,
+      //   );
+      // }
+
+      // if (m1Matches.length === 1) {
+      //   await modifyMapStats(
+      //     match as Match,
+      //     match!.mapId,
+      //     "delete",
+      //     ctx,
+      //     undefined,
+      //     undefined,
+      //     match!.memberOneGoogleId,
+      //   );
+      // } else {
+      //   await modifyMapStats(
+      //     match as Match,
+      //     match!.mapId,
+      //     "update",
+      //     ctx,
+      //     undefined,
+      //     undefined,
+      //     match!.memberOneGoogleId,
+      //   );
+      // }
+
+      // if (m2Matches.length === 1) {
+      //   await modifyMapStats(
+      //     match as Match,
+      //     match!.mapId,
+      //     "delete",
+      //     ctx,
+      //     undefined,
+      //     undefined,
+      //     match!.memberTwoGoogleId,
+      //   );
+      // } else {
+      //   await modifyMapStats(
+      //     match as Match,
+      //     match!.mapId,
+      //     "update",
+      //     ctx,
+      //     undefined,
+      //     undefined,
+      //     match!.memberTwoGoogleId,
+      //   );
+      // }
 
       //* Delete match
       const deletedMatch = await ctx.db.match.delete({
@@ -1212,41 +1365,534 @@ async function updateTeamKills(
   }
 }
 
-// async function updateTeamKills(
-//   team: Team,
-//   totalTeamKills: number,
-//   totalTeamDeaths: number,
-//   oldTotalTeamKills: number,
-//   oldTotalTeamDeaths: number,
-//   ctx: {
-//     db: PrismaClient<Prisma.PrismaClientOptions, never, DefaultArgs>;
-//     currentUser: string | null;
-//   },
-// ) {
-//   if (
-//     oldTotalTeamKills !== totalTeamKills ||
-//     oldTotalTeamDeaths !== totalTeamDeaths
-//   ) {
-//     const newTotalKills =
-//       team.total_kills! - oldTotalTeamKills + totalTeamKills;
-//     const newTotalDeaths =
-//       team.total_deaths! - oldTotalTeamDeaths + totalTeamDeaths;
-//     const newKd =
-//       newTotalDeaths > 0
-//         ? Math.round((newTotalKills / newTotalDeaths) * 100) / 100
-//         : newTotalKills;
+async function modifyMapStats(
+  newMatch: Match,
+  mapId: number,
+  matchOperation: "create" | "update" | "delete",
+  ctx: {
+    db: PrismaClient<Prisma.PrismaClientOptions, never, DefaultArgs>;
+    currentUser: string | null;
+  },
+  oldMatch?: Match,
+  teamId?: number,
+  userId?: string,
+) {
+  switch (matchOperation) {
+    case "create":
+      if (teamId) {
+        await createMapStats(newMatch, mapId, ctx, teamId);
+      } else if (userId) {
+        await createMapStats(newMatch, mapId, ctx, undefined, userId);
+      }
+      break;
+    case "update":
+      if (teamId && oldMatch) {
+        await updateMapStats(newMatch, oldMatch, mapId, ctx, teamId);
+      } else if (userId && oldMatch) {
+        await updateMapStats(newMatch, oldMatch, mapId, ctx, undefined, userId);
+      }
+      break;
+    case "delete":
+      if (teamId && oldMatch) {
+        await deleteMapStats(oldMatch, mapId, ctx, teamId);
+      } else if (userId && oldMatch) {
+        await deleteMapStats(oldMatch, mapId, ctx, undefined, userId);
+      }
+      break;
+  }
+}
 
-//     const m1totalKills = team.memberOneTotalKills - oldTotalTeamKills + totalTeamKills;
+async function createMapStats(
+  newMatch: Match,
+  mapId: number,
+  ctx: {
+    db: PrismaClient<Prisma.PrismaClientOptions, never, DefaultArgs>;
+    currentUser: string | null;
+  },
+  teamId?: number,
+  userId?: string,
+) {
+  const {
+    memberOneGoogleId,
+    memberTwoGoogleId,
+    rounds_won,
+    rounds_lost,
+    memberOneKills,
+    memberTwoKills,
+    memberOneDeaths,
+    memberTwoDeaths,
+  } = newMatch;
 
-//     await ctx.db.team.update({
-//       where: {
-//         id: team.id,
-//       },
-//       data: {
-//         total_kills: newTotalKills,
-//         total_deaths: newTotalDeaths,
-//         kd: newKd,
-//       },
-//     });
-//   }
-// }
+  console.log("newMatch", newMatch);
+
+  // If team id is passed in
+  if (teamId) {
+    const mapStatsForTeam = await ctx.db.mapStats.findFirst({
+      where: {
+        mapId,
+        teamId,
+      },
+    });
+
+    if (mapStatsForTeam) {
+      console.log("mapStatsForTeam", mapStatsForTeam);
+      const wl = calculateRatio(
+        mapStatsForTeam.matchesWon + (newMatch.result === "win" ? 1 : 0),
+        mapStatsForTeam.matchesLost + (newMatch.result === "loss" ? 1 : 0),
+      );
+
+      console.log("wl", wl);
+      const kd = calculateRatio(
+        mapStatsForTeam.kills + memberOneKills + memberTwoKills,
+        mapStatsForTeam.deaths + memberOneDeaths + memberTwoDeaths,
+      );
+      console.log("kd", kd);
+
+      await ctx.db.mapStats.update({
+        where: {
+          id: mapStatsForTeam.id,
+        },
+        data: {
+          matchesPlayed: mapStatsForTeam.matchesPlayed + 1,
+          matchesWon:
+            mapStatsForTeam.matchesWon + (newMatch.result === "win" ? 1 : 0),
+          matchesLost:
+            mapStatsForTeam.matchesLost + (newMatch.result === "loss" ? 1 : 0),
+          roundsWon: mapStatsForTeam.roundsWon + rounds_won,
+          roundsLost: mapStatsForTeam.roundsLost + rounds_lost,
+          kills: mapStatsForTeam.kills + memberOneKills + memberTwoKills,
+          deaths: mapStatsForTeam.deaths + memberOneDeaths + memberTwoDeaths,
+          kd: kd,
+          wl: wl,
+        },
+      });
+    } else {
+      const wl = calculateRatio(
+        newMatch.result === "win" ? 1 : 0,
+        newMatch.result === "loss" ? 1 : 0,
+      );
+      const kd = calculateRatio(
+        memberOneKills + memberTwoKills,
+        memberOneDeaths + memberTwoDeaths,
+      );
+
+      await ctx.db.mapStats.create({
+        data: {
+          mapId,
+          teamId,
+          matchesPlayed: 1,
+          matchesWon: newMatch.result === "win" ? 1 : 0,
+          matchesLost: newMatch.result === "loss" ? 1 : 0,
+          roundsWon: rounds_won,
+          roundsLost: rounds_lost,
+          kills: memberOneKills + memberTwoKills,
+          deaths: memberOneDeaths + memberTwoDeaths,
+          wl: wl,
+          kd: kd,
+        },
+      });
+    }
+    // Or if user id is passed in
+  } else if (userId) {
+    const mkills =
+      ctx.currentUser === memberOneGoogleId ? memberOneKills : memberTwoKills;
+    const mdeaths =
+      ctx.currentUser === memberOneGoogleId ? memberOneDeaths : memberTwoDeaths;
+    console.log("mkills", mkills);
+    console.log("mdeaths", mdeaths);
+
+    const mapStatsForUser = await ctx.db.mapStats.findFirst({
+      where: {
+        mapId,
+        userId,
+      },
+    });
+
+    if (mapStatsForUser) {
+      console.log("mapStatsForUser", mapStatsForUser);
+      const wl = calculateRatio(
+        mapStatsForUser.matchesWon + (newMatch.result === "win" ? 1 : 0),
+        mapStatsForUser.matchesLost + (newMatch.result === "loss" ? 1 : 0),
+      );
+      console.log("wl", wl);
+      const kd = calculateRatio(
+        mapStatsForUser.kills + mkills,
+        mapStatsForUser.deaths + mdeaths,
+      );
+      console.log("kd", kd);
+
+      await ctx.db.mapStats.update({
+        where: {
+          id: mapStatsForUser.id,
+        },
+        data: {
+          matchesPlayed: mapStatsForUser.matchesPlayed + 1,
+          matchesWon:
+            mapStatsForUser.matchesWon + (newMatch.result === "win" ? 1 : 0),
+          matchesLost:
+            mapStatsForUser.matchesLost + (newMatch.result === "loss" ? 1 : 0),
+          roundsWon: mapStatsForUser.roundsWon + rounds_won,
+          roundsLost: mapStatsForUser.roundsLost + rounds_lost,
+          kills: mapStatsForUser.kills + mkills,
+          deaths: mapStatsForUser.deaths + mdeaths,
+          kd: kd,
+          wl: wl,
+        },
+      });
+    } else {
+      const wl = calculateRatio(
+        newMatch.result === "win" ? 1 : 0,
+        newMatch.result === "loss" ? 1 : 0,
+      );
+      const kd = calculateRatio(mkills, mdeaths);
+
+      await ctx.db.mapStats.create({
+        data: {
+          mapId: mapId,
+          userId: userId,
+          matchesPlayed: 1,
+          matchesWon: newMatch.result === "win" ? 1 : 0,
+          matchesLost: newMatch.result === "loss" ? 1 : 0,
+          roundsWon: rounds_won,
+          roundsLost: rounds_lost,
+          kills: memberOneKills + memberTwoKills,
+          deaths: memberOneDeaths + memberTwoDeaths,
+          wl: wl,
+          kd: kd,
+        },
+      });
+    }
+  }
+}
+
+async function updateMapStats(
+  newMatch: Match,
+  oldMatch: Match,
+  mapId: number,
+  ctx: {
+    db: PrismaClient<Prisma.PrismaClientOptions, never, DefaultArgs>;
+    currentUser: string | null;
+  },
+  teamId?: number,
+  userId?: string,
+) {
+  const {
+    memberOneGoogleId,
+    memberTwoGoogleId,
+    rounds_won,
+    rounds_lost,
+    memberOneKills,
+    memberTwoKills,
+    memberOneDeaths,
+    memberTwoDeaths,
+  } = newMatch;
+
+  const {
+    memberOneGoogleId: oldMemberOneGoogleId,
+    memberTwoGoogleId: oldMemberTwoGoogleId,
+    rounds_won: oldRoundsWon,
+    rounds_lost: oldRoundsLost,
+    memberOneKills: oldMemberOneKills,
+    memberTwoKills: oldMemberTwoKills,
+    memberOneDeaths: oldMemberOneDeaths,
+    memberTwoDeaths: oldMemberTwoDeaths,
+  } = oldMatch;
+
+  if (newMatch.mapId !== oldMatch.mapId) {
+    await deleteMapStats(oldMatch, oldMatch.mapId, ctx, teamId, userId);
+    await createMapStats(newMatch, newMatch.mapId, ctx, teamId, userId);
+  } else {
+    // If team id is passed in
+    if (teamId) {
+      const mapStatsForTeam = await ctx.db.mapStats.findFirst({
+        where: {
+          mapId,
+          teamId,
+        },
+      });
+
+      if (mapStatsForTeam) {
+        let wins = mapStatsForTeam.matchesWon;
+        let losses = mapStatsForTeam.matchesLost;
+        let kills = mapStatsForTeam.kills;
+        let deaths = mapStatsForTeam.deaths;
+        let roundsWon = mapStatsForTeam.roundsWon;
+        let roundsLost = mapStatsForTeam.roundsLost;
+
+        if (newMatch.result !== oldMatch.result) {
+          if (newMatch.result === "win") {
+            wins += 1;
+            losses -= 1;
+          } else if (newMatch.result === "loss") {
+            wins -= 1;
+            losses += 1;
+          }
+        }
+
+        if (rounds_won !== oldRoundsWon) {
+          roundsWon = roundsWon - oldRoundsWon + rounds_won;
+        }
+
+        if (rounds_lost !== oldRoundsLost) {
+          roundsLost = roundsLost - oldRoundsLost + rounds_lost;
+        }
+
+        if (memberOneKills !== oldMemberOneKills) {
+          kills = kills - oldMemberOneKills + memberOneKills;
+        }
+
+        if (memberTwoKills !== oldMemberTwoKills) {
+          kills = kills - oldMemberTwoKills + memberTwoKills;
+        }
+
+        if (memberOneDeaths !== oldMemberOneDeaths) {
+          deaths = deaths - oldMemberOneDeaths + memberOneDeaths;
+        }
+
+        if (memberTwoDeaths !== oldMemberTwoDeaths) {
+          deaths = deaths - oldMemberTwoDeaths + memberTwoDeaths;
+        }
+
+        const wl = calculateRatio(wins, losses);
+        const kd = calculateRatio(kills, deaths);
+
+        await ctx.db.mapStats.update({
+          where: {
+            id: mapStatsForTeam.id,
+          },
+          data: {
+            matchesWon: wins,
+            matchesLost: losses,
+            roundsWon: roundsWon,
+            roundsLost: roundsLost,
+            kills: kills,
+            deaths: kills,
+          },
+        });
+      } else {
+        const wl = calculateRatio(
+          newMatch.result === "win" ? 1 : 0,
+          newMatch.result === "loss" ? 1 : 0,
+        );
+        const kd = calculateRatio(
+          memberOneKills + memberTwoKills,
+          memberOneDeaths + memberTwoDeaths,
+        );
+
+        await ctx.db.mapStats.create({
+          data: {
+            mapId,
+            teamId,
+            matchesPlayed: 1,
+            matchesWon: newMatch.result === "win" ? 1 : 0,
+            matchesLost: newMatch.result === "loss" ? 1 : 0,
+            roundsWon: rounds_won,
+            roundsLost: rounds_lost,
+            kills: memberOneKills + memberTwoKills,
+            deaths: memberOneDeaths + memberTwoDeaths,
+            wl: wl,
+            kd: kd,
+          },
+        });
+      }
+      // Or if user id is passed in
+    } else if (userId) {
+      const mkills =
+        ctx.currentUser === memberOneGoogleId ? memberOneKills : memberTwoKills;
+      const mdeaths =
+        ctx.currentUser === memberOneGoogleId
+          ? memberOneDeaths
+          : memberTwoDeaths;
+      const oldmkills =
+        ctx.currentUser === oldMemberOneGoogleId
+          ? oldMemberOneKills
+          : oldMemberTwoKills;
+      const oldmdeaths =
+        ctx.currentUser === oldMemberOneGoogleId
+          ? oldMemberOneDeaths
+          : oldMemberTwoDeaths;
+
+      const mapStatsForUser = await ctx.db.mapStats.findFirst({
+        where: {
+          mapId,
+          userId,
+        },
+      });
+
+      if (mapStatsForUser) {
+        let wins = mapStatsForUser.matchesWon;
+        let losses = mapStatsForUser.matchesLost;
+        let kills = mapStatsForUser.kills;
+        let deaths = mapStatsForUser.deaths;
+        let roundsWon = mapStatsForUser.roundsWon;
+        let roundsLost = mapStatsForUser.roundsLost;
+
+        if (newMatch.result !== oldMatch.result) {
+          if (newMatch.result === "win") {
+            wins += 1;
+            losses -= 1;
+          } else if (newMatch.result === "loss") {
+            wins -= 1;
+            losses += 1;
+          }
+        }
+
+        if (rounds_won !== oldRoundsWon) {
+          roundsWon = roundsWon - oldRoundsWon + rounds_won;
+        }
+
+        if (rounds_lost !== oldRoundsLost) {
+          roundsLost = roundsLost - oldRoundsLost + rounds_lost;
+        }
+
+        if (mkills !== oldmkills) {
+          kills = kills - oldmkills + mkills;
+        }
+
+        if (mdeaths !== oldmdeaths) {
+          deaths = deaths - oldmdeaths + mdeaths;
+        }
+
+        const wl = calculateRatio(wins, losses);
+        const kd = calculateRatio(kills, deaths);
+
+        await ctx.db.mapStats.update({
+          where: {
+            id: mapStatsForUser.id,
+          },
+          data: {
+            matchesWon: wins,
+            matchesLost: losses,
+            roundsWon: roundsWon,
+            roundsLost: roundsLost,
+            kills: kills,
+            deaths: deaths,
+          },
+        });
+      } else {
+        const wl = calculateRatio(
+          newMatch.result === "win" ? 1 : 0,
+          newMatch.result === "loss" ? 1 : 0,
+        );
+        const kd = calculateRatio(mkills, mdeaths);
+
+        await ctx.db.mapStats.create({
+          data: {
+            mapId: mapId,
+            userId: userId,
+            matchesPlayed: 1,
+            matchesWon: newMatch.result === "win" ? 1 : 0,
+            matchesLost: newMatch.result === "loss" ? 1 : 0,
+            roundsWon: rounds_won,
+            roundsLost: rounds_lost,
+            kills: memberOneKills + memberTwoKills,
+            deaths: memberOneDeaths + memberTwoDeaths,
+            wl: wl,
+            kd: kd,
+          },
+        });
+      }
+    }
+  }
+}
+
+async function deleteMapStats(
+  match: Match,
+  mapId: number,
+  ctx: {
+    db: PrismaClient<Prisma.PrismaClientOptions, never, DefaultArgs>;
+    currentUser: string | null;
+  },
+  teamId?: number,
+  userId?: string,
+) {
+  const {
+    memberOneGoogleId,
+    memberTwoGoogleId,
+    rounds_won,
+    rounds_lost,
+    memberOneKills,
+    memberTwoKills,
+    memberOneDeaths,
+    memberTwoDeaths,
+  } = match;
+
+  // If team id is passed in
+  if (teamId) {
+    const mapStatsForTeam = await ctx.db.mapStats.findFirst({
+      where: {
+        mapId,
+        teamId,
+      },
+    });
+
+    if (mapStatsForTeam) {
+      const wl = calculateRatio(
+        mapStatsForTeam.matchesWon + (match.result === "win" ? -1 : 1),
+        mapStatsForTeam.matchesLost + (match.result === "loss" ? -1 : 1),
+      );
+      const kd = calculateRatio(
+        mapStatsForTeam.kills - (memberOneKills + memberTwoKills),
+        mapStatsForTeam.deaths - (memberOneDeaths + memberTwoDeaths),
+      );
+
+      await ctx.db.mapStats.update({
+        where: {
+          id: mapStatsForTeam.id,
+        },
+        data: {
+          matchesPlayed: mapStatsForTeam.matchesPlayed - 1,
+          matchesWon:
+            mapStatsForTeam.matchesWon + (match.result === "win" ? -1 : 1),
+          matchesLost:
+            mapStatsForTeam.matchesLost + (match.result === "loss" ? -1 : 1),
+          roundsWon: mapStatsForTeam.roundsWon - rounds_won,
+          roundsLost: mapStatsForTeam.roundsLost - rounds_lost,
+          kills: mapStatsForTeam.kills - (memberOneKills + memberTwoKills),
+          deaths: mapStatsForTeam.deaths - (memberOneDeaths + memberTwoDeaths),
+        },
+      });
+    }
+    // Or if user id is passed in
+  } else if (userId) {
+    const mkills =
+      ctx.currentUser === memberOneGoogleId ? memberOneKills : memberTwoKills;
+    const mdeaths =
+      ctx.currentUser === memberOneGoogleId ? memberOneDeaths : memberTwoDeaths;
+
+    const mapStatsForUser = await ctx.db.mapStats.findFirst({
+      where: {
+        mapId,
+        userId,
+      },
+    });
+
+    if (mapStatsForUser) {
+      const wl = calculateRatio(
+        mapStatsForUser.matchesWon + (match.result === "win" ? -1 : 1),
+        mapStatsForUser.matchesLost + (match.result === "loss" ? -1 : 1),
+      );
+      const kd = calculateRatio(
+        mapStatsForUser.kills - mkills,
+        mapStatsForUser.deaths - mdeaths,
+      );
+
+      await ctx.db.mapStats.update({
+        where: {
+          id: mapStatsForUser.id,
+        },
+        data: {
+          matchesPlayed: mapStatsForUser.matchesPlayed - 1,
+          matchesWon:
+            mapStatsForUser.matchesWon + (match.result === "win" ? -1 : 1),
+          matchesLost:
+            mapStatsForUser.matchesLost + (match.result === "loss" ? -1 : 1),
+          roundsWon: mapStatsForUser.roundsWon - rounds_won,
+          roundsLost: mapStatsForUser.roundsLost - rounds_lost,
+          kills: mapStatsForUser.kills - mkills,
+          deaths: mapStatsForUser.deaths - mdeaths,
+        },
+      });
+    }
+  }
+}

@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unescaped-entities */
-import { Team } from "~/types";
+import { type Team } from "~/types";
 import { api } from "~/utils/api";
 import { CheckCircle2, Plus, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";

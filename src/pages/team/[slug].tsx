@@ -54,6 +54,7 @@ export default function TeamDetailPage() {
     data: team,
     // isLoading,
     // isSuccess,
+    refetch,
   } = api.team.getByName.useQuery(teamName as string);
 
   const userTeams = team?.members;
@@ -127,7 +128,11 @@ export default function TeamDetailPage() {
                 (userID === team.created_by_google_id ||
                   team.allowJoinerToAddMatches) && (
                   <div className="mt-2 flex justify-center">
-                    <NewMatchDialog teamID={team.id} users={users}>
+                    <NewMatchDialog
+                      teamID={team.id}
+                      users={users}
+                      refetch={refetch}
+                    >
                       <Button
                         size="sm"
                         variant="default"
@@ -139,7 +144,12 @@ export default function TeamDetailPage() {
                   </div>
                 )}
               {team?.matches.map((match) => (
-                <MatchCard match={match} users={users} key={match.id} />
+                <MatchCard
+                  match={match}
+                  users={users}
+                  refetch={refetch}
+                  key={match.id}
+                />
               ))}
             </div>
           )}
@@ -709,8 +719,9 @@ const NewMatchDialog = (props: {
   users: User[];
   editMatch?: Match;
   children: ReactNode;
+  refetch: () => void;
 }) => {
-  const { teamID, users, children, editMatch } = props;
+  const { teamID, users, children, editMatch, refetch } = props;
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -728,6 +739,7 @@ const NewMatchDialog = (props: {
             open: dialogOpen,
             setOpen: setDialogOpen,
           }}
+          refetch={refetch}
         />
       </DialogContent>
     </Dialog>
@@ -817,8 +829,9 @@ function MatchForm(props: {
   editMatch?: Match;
   users: User[];
   openToggle: { open: boolean; setOpen: (open: boolean) => void };
+  refetch: () => void;
 }) {
-  const { teamID, editMatch, users, openToggle } = props;
+  const { teamID, editMatch, users, openToggle, refetch } = props;
 
   // const users = team.members.map((ut) => ut.user) as unknown as User[];
   const {
@@ -864,7 +877,9 @@ function MatchForm(props: {
         },
         {
           onSuccess: () => {
-            toast.success("Match updated!", { containerId: "main" });
+            console.log("successssss");
+            toast.success("Match updated!!!", { containerId: "main" });
+            void refetch();
             openToggle.setOpen(false);
           },
           onError: (error) => {
@@ -895,6 +910,7 @@ function MatchForm(props: {
         {
           onSuccess: () => {
             toast.success("Match added!", { containerId: "main" });
+            void refetch();
             openToggle.setOpen(false);
           },
           onError: (error) => {
@@ -910,10 +926,12 @@ function MatchForm(props: {
   }
 
   const handleDelete = () => {
+    console.log("deleteeeeeee");
     if (editMatch && confirm("Are you sure you want to delete this match?")) {
       deleteMatch(editMatch.id, {
         onSuccess: () => {
           toast.success("Match deleted!", { containerId: "main" });
+          void refetch();
           openToggle.setOpen(false);
         },
         onError: (error) => {
@@ -1050,6 +1068,19 @@ function MatchForm(props: {
                           ),
                       )}
                     </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="bg-zinc-800 text-zinc-200">
+                        Cold War
+                      </SelectLabel>
+                      {maps?.map(
+                        (map) =>
+                          map.game_name === "BO6" && (
+                            <SelectItem key={map.id} value={map.id.toString()}>
+                              {map.name}
+                            </SelectItem>
+                          ),
+                      )}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </FormControl>
@@ -1168,6 +1199,7 @@ function MatchForm(props: {
                 Update
               </Button>
               <Button
+                type="button"
                 className="bg-red-700 hover:bg-red-800"
                 disabled={
                   form.formState.isSubmitting || !form.formState.isValid
@@ -1186,8 +1218,12 @@ function MatchForm(props: {
 
 //- TODO: limit matches to 10 and push to a different page to view all matches
 
-export const MatchCard = (props: { match: Match; users: User[] }) => {
-  const { match, users } = props;
+export const MatchCard = (props: {
+  match: Match;
+  users: User[];
+  refetch: () => void;
+}) => {
+  const { match, users, refetch } = props;
   // const { data: map, isLoading, isError } = api.map.getByID.useQuery(
   //   match.mapId
   // );
@@ -1240,7 +1276,12 @@ export const MatchCard = (props: { match: Match; users: User[] }) => {
         />
       </div>
 
-      <NewMatchDialog teamID={match.teamId} users={users} editMatch={match}>
+      <NewMatchDialog
+        teamID={match.teamId}
+        users={users}
+        editMatch={match}
+        refetch={refetch}
+      >
         <Button
           size="sm"
           className="m-auto border border-zinc-700 hover:bg-zinc-950"

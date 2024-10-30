@@ -14,7 +14,7 @@ import {
 } from "~/server/api/trpc";
 import { User } from "~/types";
 
-export const userRouter = createTRPCRouter({
+export const mapStatsRouter = createTRPCRouter({
   create: privateProcedure
     .input(
       z.object({
@@ -93,53 +93,4 @@ export const userRouter = createTRPCRouter({
     const users = await ctx.db.user.findMany();
     return users;
   }),
-  getByFriendcode: privateProcedure
-    .input(z.string())
-    .query(async ({ input, ctx }) => {
-      const user = await ctx.db.user.findUnique({
-        where: { friendcode: input },
-      });
-
-      return user as unknown as User;
-    }),
-  getCurrent: privateProcedure.query(async ({ ctx }) => {
-    const currentUser = ctx.currentUser;
-
-    const user = await ctx.db.user.findUnique({
-      where: { google_id: currentUser },
-    });
-
-    return user as unknown as User;
-  }),
-  checkName: privateProcedure
-    .input(z.string())
-    .query(async ({ input, ctx }) => {
-      const currentUser = ctx.currentUser;
-
-      const user = await ctx.db.user.findUnique({
-        where: { username: input },
-      });
-
-      if (user) {
-        return {
-          name_available: false,
-        };
-      }
-
-      return {
-        name_available: true,
-      };
-    }),
-  updateUsername: privateProcedure
-    .input(z.string())
-    .mutation(async ({ input, ctx }) => {
-      const currentUser = ctx.currentUser;
-
-      const user = await ctx.db.user.update({
-        where: { google_id: currentUser },
-        data: { username: input },
-      });
-
-      return user;
-    }),
 });

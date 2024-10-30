@@ -1,4 +1,4 @@
-import { TeamRequest, type Team } from "~/types";
+import { type TeamRequest, type Team } from "~/types";
 import { z } from "zod";
 
 import {
@@ -6,7 +6,6 @@ import {
   privateProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { Input } from "postcss";
 
 export const teamrequestsRouter = createTRPCRouter({
   create: privateProcedure
