@@ -29,7 +29,7 @@ export default function Home() {
   }, [user.isSignedIn, data]);
 
   return (
-    <div className="bg-triangle h-screen max-w-full bg-center bg-no-repeat">
+    <div className="h-screen max-w-full bg-triangle bg-center bg-no-repeat">
       <div className="flex h-screen flex-col items-center justify-center gap-2 ">
         <h1
           className="glass

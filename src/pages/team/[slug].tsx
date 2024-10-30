@@ -1070,7 +1070,7 @@ function MatchForm(props: {
                     </SelectGroup>
                     <SelectGroup>
                       <SelectLabel className="bg-zinc-800 text-zinc-200">
-                        Cold War
+                        Black Ops 6
                       </SelectLabel>
                       {maps?.map(
                         (map) =>

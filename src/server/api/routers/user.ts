@@ -12,7 +12,7 @@ import {
   privateProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { User } from "~/types";
+import type { User } from "~/types";
 
 export const userRouter = createTRPCRouter({
   create: privateProcedure
