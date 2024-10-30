@@ -50,5 +50,8 @@ The team admin (or the other team member if allowed via the team settings) can t
 
 Adding new matches will automatically update the team and both users stats.
 
+![image](https://github.com/user-attachments/assets/4d17b7af-7388-4e59-9937-67887608d980)
+
+
 <hr/>
 If you have any suggestions, feel free to let me know!
